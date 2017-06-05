@@ -2,7 +2,7 @@ from setuptools import setup
 import bisemantic
 
 setup(
-    name="kaggle_quora",
+    name="bisemantic",
     version=bisemantic.__version__,
     packages=["bisemantic"],
     url="",
@@ -12,5 +12,5 @@ setup(
     },
     author="W.P. McNeill",
     author_email="billmcn@gmail.com",
-    description="Text pair equivalence detector",
+    description="Text pair equivalence detector", install_requires=['pandas']
 )

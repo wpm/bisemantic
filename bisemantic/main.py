@@ -3,6 +3,7 @@ import logging
 import textwrap
 
 import bisemantic
+from bisemantic import load_data
 
 
 def main():
@@ -22,27 +23,30 @@ def create_argument_parser():
 
     train_parser = subparsers.add_parser("train", description=textwrap.dedent("""\
     Train a model to predict textual equivalence."""), help="train model")
-    train_parser.add_argument("training_filename", metavar="training", type=argparse.FileType(), help="training data")
-    train_parser.add_argument("--validation_filename", metavar="validation", type=argparse.FileType(),
-                              help="validation data")
+    train_parser.add_argument("training", type=load_data, help="training data")
+    train_parser.add_argument("--validation", type=load_data, help="validation data")
     train_parser.add_argument("--model_directory_name", metavar="model", help="output model directory")
     train_parser.add_argument("--n", type=int, help="number of training samples to use (default all)")
-    train_parser.set_defaults(
-        func=lambda args: train(args.training_filename, args.validation_filename, args.model_directory_name, args.n))
+    train_parser.set_defaults(func=lambda args: train(args))
 
     predict_parser = subparsers.add_parser("predict", description=textwrap.dedent("""\
     Use a model to predict textual equivalence."""), help="predict equivalence")
-    predict_parser.add_argument("test_filename", metavar="test", type=argparse.FileType(), help="test data")
     predict_parser.add_argument("model_directory_name", metavar="model", help="model directory")
+    predict_parser.add_argument("test", type=load_data, help="test data")
     predict_parser.add_argument("--n", type=int, help="number of test samples to use (default all)")
-    predict_parser.set_defaults(func=lambda args: predict(args.test_filename, args.model_directory_name, args.n))
+    predict_parser.set_defaults(func=lambda args: predict(args))
 
     return parser
 
 
-def train(training_filename, validation_filename, model_directory_name, n):
+def train(args):
     logging.debug("Train")
+    training = args.training.head(args.n)
+    validation = args.validation
+    if validation is not None:
+        validation = validation.head(args.n)
 
 
-def predict(test_filename, model_directory_name, n):
+def predict(args):
     logging.debug("Predict")
+    test = args.test.head(args.n)
