@@ -4,19 +4,8 @@ from unittest import TestCase
 
 import pandas as pd
 
-from bisemantic import load_data
+from bisemantic import embed, load_data
 from bisemantic.main import main
-
-
-def main_function_output(args):
-    sys.argv = ["bisemantic"] + args
-    sys.stdout = s = StringIO()
-    try:
-        main()
-    except SystemExit:
-        pass
-    sys.stdout = sys.__stdout__
-    return s.getvalue()
 
 
 class TestCommandLine(TestCase):
@@ -36,8 +25,39 @@ class TestPreprocess(TestCase):
         self.assertEqual(3, len(actual))
 
 
-class TestEndtoEnd(TestCase):
+class TestEndToEnd(TestCase):
     def test_end_to_end(self):
         main_function_output(["train", "test/resources/train.csv",
                               "--validation", "test/resources/train.csv"])
         main_function_output(["predict", "model", "test/resources/test.csv"])
+
+
+class TestEmbedding(TestCase):
+    def setUp(self):
+        self.text_pairs = pd.DataFrame({
+            "text1": ["horse mouse", "red black blue", "heart diamond", "triangle"],
+            "text2": ["cat horse", "red green", "spade spade", "circle square rectangle"],
+        })
+
+    def test_embedding(self):
+        embeddings = embed(self.text_pairs)
+        self.assertIsInstance(embeddings, list)
+        self.assertEqual(2, len(embeddings))
+        self.assertEqual((4, 3, 300), embeddings[0].shape)
+
+    def test_embedding_clip(self):
+        embeddings = embed(self.text_pairs, maximum_tokens=2)
+        self.assertIsInstance(embeddings, list)
+        self.assertEqual(2, len(embeddings))
+        self.assertEqual((4, 2, 300), embeddings[0].shape)
+
+
+def main_function_output(args):
+    sys.argv = ["bisemantic"] + args
+    sys.stdout = s = StringIO()
+    try:
+        main()
+    except SystemExit:
+        pass
+    sys.stdout = sys.__stdout__
+    return s.getvalue()
