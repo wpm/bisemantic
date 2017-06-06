@@ -3,6 +3,7 @@ from io import StringIO
 from unittest import TestCase
 
 import pandas as pd
+from numpy.testing import assert_array_equal
 
 from bisemantic import embed, load_data
 from bisemantic.main import main
@@ -19,9 +20,22 @@ class TestCommandLine(TestCase):
 
 
 class TestPreprocess(TestCase):
+    def test_load_training_data(self):
+        actual = load_data("test/resources/train.csv")
+        self.assertIsInstance(actual, pd.DataFrame)
+        assert_array_equal(["text1", "text2", "label"], actual.columns)
+        self.assertEqual(100, len(actual))
+
+    def test_load_test_data(self):
+        actual = load_data("test/resources/test.csv")
+        self.assertIsInstance(actual, pd.DataFrame)
+        assert_array_equal(["text1", "text2"], actual.columns)
+        self.assertEqual(9, len(actual))
+
     def test_load_data_with_null(self):
         actual = load_data("test/resources/data_with_null_values.csv")
         self.assertIsInstance(actual, pd.DataFrame)
+        assert_array_equal(["text1", "text2", "label"], actual.columns)
         self.assertEqual(3, len(actual))
 
 
