@@ -25,6 +25,8 @@ def create_argument_parser():
     Train a model to predict textual equivalence."""), help="train model")
     train_parser.add_argument("training", type=load_data, help="training data")
     train_parser.add_argument("--validation", type=load_data, help="validation data")
+    train_parser.add_argument("--lstm_units", metavar="lstm-units", type=int, default=128,
+                              help="LSTM hidden layer size (default 128)")
     train_parser.add_argument("--model_directory_name", metavar="model", help="output model directory")
     train_parser.add_argument("--n", type=int, help="number of training samples to use (default all)")
     train_parser.set_defaults(func=lambda args: train(args))
@@ -40,13 +42,11 @@ def create_argument_parser():
 
 
 def train(args):
-    logging.debug("Train")
     training = args.training.head(args.n)
+    logging.debug("Train on %d samples" % len(training))
     validation = args.validation
-    if validation is not None:
-        validation = validation.head(args.n)
 
 
 def predict(args):
-    logging.debug("Predict")
     test = args.test.head(args.n)
+    logging.debug("Predict labels for %d pairs" % len(test))

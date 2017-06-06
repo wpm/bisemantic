@@ -12,5 +12,5 @@ setup(
     },
     author="W.P. McNeill",
     author_email="billmcn@gmail.com",
-    description="Text pair equivalence detector", install_requires=['pandas', 'spacy']
+    description="Text pair equivalence detector", install_requires=['pandas', 'spacy', 'keras', 'numpy']
 )

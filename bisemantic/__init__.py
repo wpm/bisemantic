@@ -9,4 +9,4 @@ text_1 = "text1"
 text_2 = "text2"
 label = "label"
 
-from model import embed, load_data
+from model import embed, load_data, TextualEquivalenceModel
