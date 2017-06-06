@@ -3,7 +3,7 @@ import logging
 
 import numpy as np
 import pandas as pd
-import spacy as spacy
+import spacy
 
 from bisemantic import text_1, text_2, label
 
