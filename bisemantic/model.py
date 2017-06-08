@@ -29,19 +29,12 @@ class TextualEquivalenceModel(object):
         """
         training_embeddings, maximum_tokens, embedding_size, training_labels = \
             TextualEquivalenceModel.embed_data_frame(training_data)
-        model = cls(maximum_tokens, embedding_size, lstm_units)
+        model = cls.create(maximum_tokens, embedding_size, lstm_units)
         history = model.fit(training_embeddings, training_labels, epochs=epochs, validation_data=validation_data)
         return model, history
 
-    @staticmethod
-    def embed_data_frame(data):
-        embeddings, maximum_tokens = embed(data)
-        labels = data[label]
-        embedding_size = embeddings[0].shape[2]
-        return embeddings, maximum_tokens, embedding_size, labels
-
-    # maximum_tokens, embedding_size =model.model.input_shape[0][1:]
-    def __init__(self, maximum_tokens, embedding_size, lstm_units):
+    @classmethod
+    def create(cls, maximum_tokens, embedding_size, lstm_units):
         # Create the model geometry.
         input_shape = (maximum_tokens, embedding_size)
         # Input two sets of aligned question pairs.
@@ -61,8 +54,20 @@ class TextualEquivalenceModel(object):
         lstm_output = concatenate([r1, r2, p])
         # Use logistic regression to map the concatenated vector to the labels.
         logistic_regression = Dense(1, activation="sigmoid")(lstm_output)
-        self.model = Model([input_1, input_2], logistic_regression, "Textual equivalence")
-        self.model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
+        model = Model([input_1, input_2], logistic_regression, "Textual equivalence")
+        model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
+        return cls(model)
+
+    @staticmethod
+    def embed_data_frame(data):
+        embeddings, maximum_tokens = embed(data)
+        labels = data[label]
+        embedding_size = embeddings[0].shape[2]
+        return embeddings, maximum_tokens, embedding_size, labels
+
+    # maximum_tokens, embedding_size =model.model.input_shape[0][1:]
+    def __init__(self, model):
+        self.model = model
 
     @property
     def maximum_tokens(self):
@@ -74,7 +79,7 @@ class TextualEquivalenceModel(object):
 
     @property
     def lstm_units(self):
-        return [layer.units for layer in self.model.layers if layer.name == "lstm"][0]
+        return self.model.get_layer("lstm").units
 
     def __repr__(self):
         return "%s(LSTM units = %d, maximum tokens = %d, embedding size = %d)" % \
