@@ -9,8 +9,9 @@ import pandas as pd
 from keras.callbacks import History
 from numpy.testing import assert_array_equal
 
-from bisemantic import embed, load_data, TextualEquivalenceModel
-from bisemantic.main import main
+from bisemantic import load_data, TextualEquivalenceModel
+from bisemantic.console import main
+from bisemantic.main import embed
 
 
 class TestCommandLine(TestCase):

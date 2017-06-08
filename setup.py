@@ -8,7 +8,7 @@ setup(
     url="",
     license="",
     entry_points={
-        "console_scripts": ["bisemantic=bisemantic.main:main"],
+        "console_scripts": ["bisemantic=bisemantic.console:main"],
     },
     author="W.P. McNeill",
     author_email="billmcn@gmail.com",
