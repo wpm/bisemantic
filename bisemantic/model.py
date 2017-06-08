@@ -6,6 +6,7 @@ import pandas as pd
 import spacy
 from keras.engine import Model, Input
 from keras.layers import LSTM, multiply, concatenate, Dense
+from keras.models import load_model
 
 from bisemantic import text_1, text_2, label
 
@@ -27,14 +28,47 @@ class TextualEquivalenceModel(object):
         :return: the trained model and its training history
         :rtype: (keras.engine.Model, keras.callbacks.History)
         """
-        training_embeddings, maximum_tokens, embedding_size, training_labels = \
-            TextualEquivalenceModel.embed_data_frame(training_data)
+
+        def embed_data_frame(data):
+            embeddings, maximum_tokens = embed(data)
+            labels = data[label]
+            embedding_size = embeddings[0].shape[2]
+            return embeddings, maximum_tokens, embedding_size, labels
+
+        training_embeddings, maximum_tokens, embedding_size, training_labels = embed_data_frame(training_data)
         model = cls.create(maximum_tokens, embedding_size, lstm_units)
         history = model.fit(training_embeddings, training_labels, epochs=epochs, validation_data=validation_data)
         return model, history
 
     @classmethod
+    def load(cls, filename):
+        """
+        Restore a model serialized by TextualEquivalenceModel.save.
+
+        :param filename: file name
+        :type filename: str
+        :return: the restored model
+        :rtype: TextualEquivalenceModel
+        """
+        return cls(load_model(filename))
+
+    @classmethod
     def create(cls, maximum_tokens, embedding_size, lstm_units):
+        """
+        Create a model that detects semantic equivalence between text pairs.
+
+        The text pairs are passed in as two aligned matrices of size
+        (batch size, maximum embedding tokens, embedding size). They are created by the embed function.
+
+        :param maximum_tokens: maximum number of embedded tokens
+        :type maximum_tokens: int
+        :param embedding_size: size of the embedding vector
+        :type embedding_size: int
+        :param lstm_units: number of hidden units in the shared LSTM
+        :type lstm_units: int
+        :return: the created model
+        :rtype: TextualEquivalenceModel
+        """
         # Create the model geometry.
         input_shape = (maximum_tokens, embedding_size)
         # Input two sets of aligned question pairs.
@@ -58,14 +92,6 @@ class TextualEquivalenceModel(object):
         model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
         return cls(model)
 
-    @staticmethod
-    def embed_data_frame(data):
-        embeddings, maximum_tokens = embed(data)
-        labels = data[label]
-        embedding_size = embeddings[0].shape[2]
-        return embeddings, maximum_tokens, embedding_size, labels
-
-    # maximum_tokens, embedding_size =model.model.input_shape[0][1:]
     def __init__(self, model):
         self.model = model
 
@@ -160,7 +186,7 @@ def embed(text_pairs, maximum_tokens=None):
 
     logging.info("Embed %d text pairs" % len(text_pairs))
     # Convert text to embedding vectors.
-    text_sets = aligned_text_sets(text_pairs)
+    text_sets = (text_pairs[text] for text in [text_1, text_2])
     parsed_text_sets = [list(parse_documents(text_set)) for text_set in text_sets]
     # Get the maximum number of tokens from the longest text if not specified.
     if maximum_tokens is None:
@@ -199,8 +225,5 @@ def parse_documents(texts, n_threads=-1):
     return text_parser.pipe(texts, n_threads=n_threads)
 
 
+# Singleton instance of text tokenizer and embedder.
 text_parser = None
-
-
-def aligned_text_sets(text_pairs):
-    return (text_pairs[text] for text in [text_1, text_2])
