@@ -1,10 +1,13 @@
+import os
 import sys
+import tempfile
 from io import StringIO
-from unittest import TestCase
+from unittest import TestCase, skip
 
 import numpy as np
 import pandas as pd
 from keras.callbacks import History
+from keras.models import load_model
 from numpy.testing import assert_array_equal
 
 from bisemantic import embed, load_data, TextualEquivalenceModel
@@ -49,6 +52,12 @@ class TestModel(TestCase):
         self.validate = data[n:]
         self.test = load_data("test/resources/test.csv")
 
+    def test_properties(self):
+        model = TextualEquivalenceModel(40, 300, 128)
+        self.assertEqual(40, model.maximum_tokens)
+        self.assertEqual(300, model.embedding_size)
+        self.assertEqual(128, model.lstm_units)
+
     def test_model(self):
         model, history = TextualEquivalenceModel.train(self.train, 128, 2, self.validate)
         self.assertIsInstance(model, TextualEquivalenceModel)
@@ -58,6 +67,22 @@ class TestModel(TestCase):
         predictions = model.predict(self.test)
         self.assertEqual((len(self.test),), predictions.shape)
         self.assertTrue(set(np.unique(predictions)).issubset({0, 1}))
+
+
+@skip("Hold off on this")
+class TestSerialization(TestCase):
+    def setUp(self):
+        _, self.filename = tempfile.mkstemp('.h5')
+
+    def test_serialization(self):
+        model = TextualEquivalenceModel(40, 300, 128)
+        model.save(self.filename)
+        deserialized_model = load_model(self.filename,
+                                        custom_objects={"TextualEquivalenceModel": TextualEquivalenceModel})
+        self.assertIsInstance(deserialized_model, TextualEquivalenceModel)
+
+    def tearDown(self):
+        os.remove(self.filename)
 
 
 class TestEmbedding(TestCase):

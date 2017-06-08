@@ -5,12 +5,12 @@ import numpy as np
 import pandas as pd
 import spacy
 from keras.engine import Model, Input
-from keras.layers import LSTM, multiply, Lambda, add, concatenate, Dense
+from keras.layers import LSTM, multiply, concatenate, Dense
 
 from bisemantic import text_1, text_2, label
 
 
-class TextualEquivalenceModel(Model):
+class TextualEquivalenceModel(object):
     @classmethod
     def train(cls, training_data, lstm_units, epochs, validation_data=None):
         """
@@ -30,7 +30,6 @@ class TextualEquivalenceModel(Model):
         training_embeddings, maximum_tokens, embedding_size, training_labels = \
             TextualEquivalenceModel.embed_data_frame(training_data)
         model = cls(maximum_tokens, embedding_size, lstm_units)
-        model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
         history = model.fit(training_embeddings, training_labels, epochs=epochs, validation_data=validation_data)
         return model, history
 
@@ -41,34 +40,47 @@ class TextualEquivalenceModel(Model):
         embedding_size = embeddings[0].shape[2]
         return embeddings, maximum_tokens, embedding_size, labels
 
+    # maximum_tokens, embedding_size =model.model.input_shape[0][1:]
     def __init__(self, maximum_tokens, embedding_size, lstm_units):
-        self.maximum_tokens = maximum_tokens
-        self.embedding_size = embedding_size
-        self.lstm_units = lstm_units
         # Create the model geometry.
         input_shape = (maximum_tokens, embedding_size)
         # Input two sets of aligned question pairs.
         input_1 = Input(input_shape)
         input_2 = Input(input_shape)
         # Apply the same LSTM to each.
-        lstm = LSTM(lstm_units)
+        lstm = LSTM(lstm_units, name="lstm")
         r1 = lstm(input_1)
         r2 = lstm(input_2)
         # Concatenate the embeddings with their product and squared difference.
         p = multiply([r1, r2])
-        negative_r2 = Lambda(lambda x: -x)(r2)
-        d = add([r1, negative_r2])
-        q = multiply([d, d])
-        lstm_output = concatenate([r1, r2, p, q])
+        # Deserialization is broken for squared difference. See Keras issue 6827.
+        # negative_r2 = Lambda(lambda x: -x)(r2)
+        # d = add([r1, negative_r2])
+        # q = multiply([d, d])
+        # lstm_output = concatenate([r1, r2, p, q])
+        lstm_output = concatenate([r1, r2, p])
         # Use logistic regression to map the concatenated vector to the labels.
         logistic_regression = Dense(1, activation="sigmoid")(lstm_output)
-        super().__init__([input_1, input_2], logistic_regression, "Textual equivalence")
+        self.model = Model([input_1, input_2], logistic_regression, "Textual equivalence")
+        self.model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
+
+    @property
+    def maximum_tokens(self):
+        return self.model.input_shape[0][1]
+
+    @property
+    def embedding_size(self):
+        return self.model.input_shape[0][2]
+
+    @property
+    def lstm_units(self):
+        return [layer.units for layer in self.model.layers if layer.name == "lstm"][0]
 
     def __repr__(self):
         return "%s(LSTM units = %d, maximum tokens = %d, embedding size = %d)" % \
                (self.__class__.__name__, self.lstm_units, self.maximum_tokens, self.embedding_size)
 
-    def fit(self, training_embeddings=None, training_labels=None, epochs=1, validation_data=None, **kwargs):
+    def fit(self, training_embeddings=None, training_labels=None, epochs=1, validation_data=None):
         if training_embeddings is not None:
             assert self._embedding_size_is_correct(training_embeddings)
             assert len(training_embeddings[0]) == len(training_labels)
@@ -77,16 +89,18 @@ class TextualEquivalenceModel(Model):
             assert self._embedding_size_is_correct(validation_embeddings)
             validation_labels = validation_data[label]
             validation_data = (validation_embeddings, validation_labels)
-        return super().fit(x=training_embeddings, y=training_labels, epochs=epochs, validation_data=validation_data,
-                           **kwargs)
+        return self.model.fit(x=training_embeddings, y=training_labels, epochs=epochs, validation_data=validation_data)
 
     def predict(self, test_data, batch_size=32, verbose=0):
         test_embeddings, _ = embed(test_data, self.maximum_tokens)
-        probabilities = super().predict(test_embeddings, batch_size, verbose)
+        probabilities = self.model.predict(test_embeddings, batch_size, verbose)
         return (probabilities > 0.5).astype('int32').reshape((-1,))
 
     def _embedding_size_is_correct(self, embeddings):
         return embeddings[0].shape[1:] == (self.maximum_tokens, self.embedding_size)
+
+    def save(self, filename):
+        self.model.save(filename)
 
 
 def load_data(filename):
