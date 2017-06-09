@@ -68,20 +68,20 @@ def create_argument_parser():
 def train(args):
     training = fix_columns(args.training.head(args.n),
                            text_1_name=args.text_1_name, text_2_name=args.text_2_name, label_name=args.label_name)
-    logging.info("Train on %d samples" % len(training))
     start = time.time()
     model, history = TextualEquivalenceModel.train(training, args.units, args.epochs, args.validation)
-    training_time = seconds = time.time() - start
+    training_time = str(timedelta(seconds=time.time() - start))
     history = history.history
     if args.model_directory_name is not None:
         logging.info("Save model to %s" % args.model_directory_name)
         model.save(model_filename(args.model_directory_name))
         with open(history_filename(args.model_directory_name), mode="w") as f:
-            json.dump({"training-time": str(timedelta(seconds=training_time)), "scores": history}, f,
+            json.dump({"training-time": training_time, "scores": history}, f,
                       sort_keys=True, indent=4, separators=(',', ': '))
-    print("Training\naccuracy=%0.4f, loss=%0.4f" % (history["acc"][-1], history["loss"][-1]))
+    print("Training time %s" % training_time)
+    print("Training: accuracy=%0.4f, loss=%0.4f" % (history["acc"][-1], history["loss"][-1]))
     if args.validation is not None:
-        print("Validation\naccuracy=%0.4f, loss=%0.4f" % (history["val_acc"][-1], history["val_loss"][-1]))
+        print("Validation: accuracy=%0.4f, loss=%0.4f" % (history["val_acc"][-1], history["val_loss"][-1]))
 
 
 def predict(args):

@@ -120,7 +120,9 @@ class TextualEquivalenceModel(object):
             assert self._embedding_size_is_correct(validation_embeddings)
             validation_labels = validation_data[label]
             validation_data = (validation_embeddings, validation_labels)
-        return self.model.fit(x=training_embeddings, y=training_labels, epochs=epochs, validation_data=validation_data)
+        verbose = {logging.INFO: 2, logging.DEBUG: 1}.get(logging.getLogger().getEffectiveLevel(), 0)
+        return self.model.fit(x=training_embeddings, y=training_labels, epochs=epochs, validation_data=validation_data,
+                              verbose=verbose)
 
     def predict(self, test_data):
         test_embeddings, _ = embed(test_data, self.maximum_tokens)
@@ -157,7 +159,7 @@ def embed(text_pairs, maximum_tokens=None):
         uniform_length_document_embedding = np.pad(text_embedding[:maximum_tokens], ((m, 0), (0, 0)), "constant")
         return uniform_length_document_embedding
 
-    logging.info("Embed %d text pairs" % len(text_pairs))
+    logging.debug("Embed %d text pairs" % len(text_pairs))
     # Convert text to embedding vectors.
     text_sets = (text_pairs[text] for text in [text_1, text_2])
     parsed_text_sets = [list(parse_documents(text_set)) for text_set in text_sets]
@@ -216,7 +218,7 @@ def parse_documents(texts, n_threads=-1):
     """
     global text_parser
     if text_parser is None:
-        logging.info("Load text parser")
+        logging.debug("Load text parser")
         text_parser = spacy.load("en", tagger=None, parser=None, entity=None)
     return text_parser.pipe(texts, n_threads=n_threads)
 
