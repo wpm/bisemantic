@@ -1,4 +1,5 @@
 import os
+import shutil
 import sys
 import tempfile
 from io import StringIO
@@ -6,12 +7,11 @@ from unittest import TestCase
 
 import numpy as np
 import pandas as pd
-import shutil
 from keras.callbacks import History
 from numpy.testing import assert_array_equal
 
-from bisemantic import load_data, TextualEquivalenceModel
-from bisemantic.console import main
+from bisemantic import TextualEquivalenceModel
+from bisemantic.console import main, data_file, fix_columns
 from bisemantic.main import embed
 
 
@@ -26,32 +26,41 @@ class TestCommandLine(TestCase):
 
 
 class TestPreprocess(TestCase):
+    def setUp(self):
+        self.train = data_file("test/resources/train.csv")
+
     def test_load_training_data(self):
-        actual = load_data("test/resources/train.csv")
-        self.assertIsInstance(actual, pd.DataFrame)
-        assert_array_equal(["text1", "text2", "label"], actual.columns)
-        self.assertEqual(100, len(actual))
+        self.assertIsInstance(self.train, pd.DataFrame)
+        assert_array_equal(["text1", "text2", "label"], self.train.columns)
+        self.assertEqual(100, len(self.train))
 
     def test_load_test_data(self):
-        actual = load_data("test/resources/test.csv")
+        actual = data_file("test/resources/test.csv")
         self.assertIsInstance(actual, pd.DataFrame)
         assert_array_equal(["text1", "text2"], actual.columns)
         self.assertEqual(9, len(actual))
 
     def test_load_data_with_null(self):
-        actual = load_data("test/resources/data_with_null_values.csv")
+        actual = data_file("test/resources/data_with_null_values.csv")
         self.assertIsInstance(actual, pd.DataFrame)
         assert_array_equal(["text1", "text2", "label"], actual.columns)
         self.assertEqual(3, len(actual))
 
+    def test_fix_columns_with_no_rename(self):
+        train = fix_columns(self.train)
+        assert_array_equal(["text1", "text2", "label"], train.columns)
+
+    def test_fix_columns_with_invalid_column_name(self):
+        self.assertRaises(ValueError, fix_columns, self.train, text_1_name="bogus")
+
 
 class TestModel(TestCase):
     def setUp(self):
-        data = load_data("test/resources/train.csv")
+        data = data_file("test/resources/train.csv")
         n = int(0.8 * len(data))
         self.train = data[:n]
         self.validate = data[n:]
-        self.test = load_data("test/resources/test.csv")
+        self.test = data_file("test/resources/test.csv")
 
     def test_properties(self):
         model = TextualEquivalenceModel.create(40, 300, 128)

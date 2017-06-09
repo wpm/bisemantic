@@ -2,7 +2,6 @@ import itertools
 import logging
 
 import numpy as np
-import pandas as pd
 import spacy
 from keras.engine import Model, Input
 from keras.layers import LSTM, multiply, concatenate, Dense
@@ -132,33 +131,6 @@ class TextualEquivalenceModel(object):
 
     def save(self, filename):
         self.model.save(filename)
-
-
-def load_data(filename):
-    """
-    Load a test or training data file.
-
-    A data file is a CSV file. Test data files have the columns "text1", and "text2". Training data files additionally
-    have a "label" column.
-
-    This returns a data frame containing just these columns. Any rows with null values are dropped.
-
-    :param filename: name of data file
-    :type filename: str
-    :return: data stored in the data file
-    :rtype: pandas.DataFrame
-    """
-    data = pd.read_csv(filename)
-    m = len(data)
-    data = data.dropna()
-    n = len(data)
-    if m != n:
-        logging.info("Dropped %d lines with null values from %s" % (m - n, filename))
-    if label in data.columns:
-        columns = [text_1, text_2, label]
-    else:
-        columns = [text_1, text_2]
-    return data[columns]
 
 
 def embed(text_pairs, maximum_tokens=None):
