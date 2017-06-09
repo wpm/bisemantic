@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import sys
@@ -150,7 +151,11 @@ class TestCommandLine(TestCase):
                               "--units", "64",
                               "--model", self.model_directory])
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
-        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "history.json")))
+        history_filename = os.path.join(self.model_directory, "history.json")
+        self.assertTrue(os.path.isfile(history_filename))
+        with open(history_filename) as f:
+            history = json.load(f)
+            self.assertEqual({"training-time", "scores"}, set(history.keys()))
         main_function_output(["predict", self.model_directory, "test/resources/test.csv"])
 
     def tearDown(self):
