@@ -77,7 +77,9 @@ def train(args):
         logging.info("Save model to %s" % args.model_directory_name)
         model.save(model_filename(args.model_directory_name))
         with open(history_filename(args.model_directory_name), mode="w") as f:
-            json.dump({"training-time": training_time, "scores": history}, f,
+            json.dump({"training-time": training_time,
+                       "model-parameters": model.parameters(),
+                       "scores": history}, f,
                       sort_keys=True, indent=4, separators=(',', ': '))
     print("Training time %s" % training_time)
     print("Training: accuracy=%0.4f, loss=%0.4f" % (history["acc"][-1], history["loss"][-1]))

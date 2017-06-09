@@ -111,6 +111,11 @@ class TextualEquivalenceModel(object):
         return "%s(LSTM units = %d, maximum tokens = %d, embedding size = %d)" % \
                (self.__class__.__name__, self.lstm_units, self.maximum_tokens, self.embedding_size)
 
+    def parameters(self):
+        return {"maximum_tokens": self.maximum_tokens,
+                "embedding_size": self.embedding_size,
+                "lstm_units": self.lstm_units}
+
     def fit(self, training_embeddings=None, training_labels=None, epochs=1, validation_data=None):
         if training_embeddings is not None:
             assert self._embedding_size_is_correct(training_embeddings)

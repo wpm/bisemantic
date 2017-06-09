@@ -68,6 +68,7 @@ class TestModel(TestCase):
         self.assertEqual(40, model.maximum_tokens)
         self.assertEqual(300, model.embedding_size)
         self.assertEqual(128, model.lstm_units)
+        self.assertEqual({"maximum_tokens": 40, "embedding_size": 300, "lstm_units": 128}, model.parameters())
 
     def test_train_and_predict(self):
         model, history = TextualEquivalenceModel.train(self.train, 128, 2, self.validate)
@@ -154,7 +155,7 @@ class TestCommandLine(TestCase):
         self.assertTrue(os.path.isfile(history_filename))
         with open(history_filename) as f:
             history = json.load(f)
-            self.assertEqual({"training-time", "scores"}, set(history.keys()))
+            self.assertEqual({"training-time", "model-parameters", "scores"}, set(history.keys()))
         main_function_output(["predict", self.model_directory, "test/resources/test.csv"])
 
     def tearDown(self):
