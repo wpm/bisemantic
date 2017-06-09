@@ -12,7 +12,7 @@ from bisemantic import text_1, text_2, label
 
 class TextualEquivalenceModel(object):
     @classmethod
-    def train(cls, training_data, lstm_units, epochs, validation_data=None):
+    def train(cls, training_data, lstm_units, epochs, clip_tokens=None, validation_data=None):
         """
         Train a model from aligned questions pairs in data frames.
 
@@ -22,6 +22,8 @@ class TextualEquivalenceModel(object):
         :type lstm_units: int
         :param epochs: number of training epochs
         :type epochs: int
+        :param clip_tokens: maximum number of tokens to embed per sample
+        :type clip_tokens: int
         :param validation_data: optional validation data
         :type validation_data: pandas.DataFrame or None
         :return: the trained model and its training history
@@ -30,7 +32,7 @@ class TextualEquivalenceModel(object):
 
         # noinspection PyShadowingNames
         def embed_data_frame(data):
-            embeddings, maximum_tokens = embed(data)
+            embeddings, maximum_tokens = embed(data, clip_tokens)
             labels = data[label]
             embedding_size = embeddings[0].shape[2]
             return embeddings, maximum_tokens, embedding_size, labels
@@ -147,7 +149,7 @@ def embed(text_pairs, maximum_tokens=None):
 
     :param text_pairs: text pairs
     :type text_pairs: pandas.DataFrame
-    :param maximum_tokens: the longest string of tokens to embed
+    :param maximum_tokens: maximum number of tokens to embed per sample
     :type maximum_tokens: int
     :return: embedding matrices for the text pairs, the maximum number of tokens in the pairs
     :rtype: (list(numpy.array), int)

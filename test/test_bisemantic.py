@@ -71,10 +71,11 @@ class TestModel(TestCase):
         self.assertEqual({"maximum_tokens": 40, "embedding_size": 300, "lstm_units": 128}, model.parameters())
 
     def test_train_and_predict(self):
-        model, history = TextualEquivalenceModel.train(self.train, 128, 2, self.validate)
+        model, history = TextualEquivalenceModel.train(self.train, 128, 2,
+                                                       clip_tokens=30, validation_data=self.validate)
         self.assertIsInstance(model, TextualEquivalenceModel)
         self.assertIsInstance(history, History)
-        self.assertEqual("TextualEquivalenceModel(LSTM units = 128, maximum tokens = 40, embedding size = 300)",
+        self.assertEqual("TextualEquivalenceModel(LSTM units = 128, maximum tokens = 30, embedding size = 300)",
                          str(model))
         predictions = model.predict(self.test)
         self.assertEqual((len(self.test),), predictions.shape)

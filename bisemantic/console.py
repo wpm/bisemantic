@@ -37,6 +37,7 @@ def create_argument_parser():
     train_parser.add_argument("training", type=data_file, help="training data")
     train_parser.add_argument("--validation", type=data_file, help="validation data")
     train_parser.add_argument("--units", type=int, default=128, help="LSTM hidden layer size (default 128)")
+    train_parser.add_argument("--maximum-tokens", type=int, help="maximum number of tokens to embed per sample")
     train_parser.add_argument("--epochs", type=int, default=10, help="training epochs (default 10)")
     train_parser.add_argument("--model-directory-name", metavar="MODEL", type=output_directory,
                               help="output model directory")
@@ -70,7 +71,8 @@ def train(args):
     training = fix_columns(args.training.head(args.n),
                            text_1_name=args.text_1_name, text_2_name=args.text_2_name, label_name=args.label_name)
     start = time.time()
-    model, history = TextualEquivalenceModel.train(training, args.units, args.epochs, args.validation)
+    model, history = TextualEquivalenceModel.train(training, args.units, args.epochs,
+                                                   args.maximum_tokens, args.validation)
     training_time = str(timedelta(seconds=time.time() - start))
     history = history.history
     if args.model_directory_name is not None:
