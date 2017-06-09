@@ -8,6 +8,3 @@ __version__ = "1.0.0"
 text_1 = "text1"
 text_2 = "text2"
 label = "label"
-
-# noinspection PyUnresolvedReferences
-from bisemantic.main import TextualEquivalenceModel, cross_validation_partitions

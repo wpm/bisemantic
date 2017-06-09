@@ -3,14 +3,13 @@ import json
 import logging
 import os
 import textwrap
-
-import pandas as pd
 import time
-
 from datetime import timedelta
 
+import pandas as pd
+
 import bisemantic
-from bisemantic import TextualEquivalenceModel, label, text_1, text_2, cross_validation_partitions
+from bisemantic import text_1, text_2, label
 
 
 def main():
@@ -66,6 +65,8 @@ def create_argument_parser():
 
 
 def train(args):
+    from bisemantic.main import TextualEquivalenceModel
+
     training = fix_columns(args.training.head(args.n),
                            text_1_name=args.text_1_name, text_2_name=args.text_2_name, label_name=args.label_name)
     start = time.time()
@@ -93,6 +94,7 @@ def predict(args):
 
 
 def create_cross_validation_partitions(args):
+    from bisemantic.main import cross_validation_partitions
     data = fix_columns(args.data.head(args.n),
                        text_1_name=args.text_1_name, text_2_name=args.text_2_name, label_name=args.label_name)
     for i, (train_partition, validate_partition) in enumerate(cross_validation_partitions(data, args.fraction, args.k)):
@@ -156,6 +158,7 @@ def output_directory(directory_name):
 
 
 def model_directory(directory_name):
+    from bisemantic.main import TextualEquivalenceModel
     model = TextualEquivalenceModel.load(model_filename(directory_name))
     with open(history_filename(directory_name)) as f:
         history = json.load(f)

@@ -11,9 +11,8 @@ import pandas as pd
 from keras.callbacks import History
 from numpy.testing import assert_array_equal
 
-from bisemantic import TextualEquivalenceModel
 from bisemantic.console import main, data_file, fix_columns
-from bisemantic.main import embed, cross_validation_partitions
+from bisemantic.main import TextualEquivalenceModel, embed, cross_validation_partitions
 
 
 class TestPreprocess(TestCase):
