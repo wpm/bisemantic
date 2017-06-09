@@ -28,6 +28,7 @@ class TextualEquivalenceModel(object):
         :rtype: (TextualEquivalenceModel, keras.callbacks.History)
         """
 
+        # noinspection PyShadowingNames
         def embed_data_frame(data):
             embeddings, maximum_tokens = embed(data)
             labels = data[label]
@@ -179,7 +180,7 @@ def embed(text_pairs, maximum_tokens=None):
 
 def cross_validation_partitions(data, fraction, k):
     """
-    Split data into set of cross-validation sets.
+    Partition data into of cross-validation sets.
 
     :param data: data set
     :type data: pandas.DataFrame
@@ -191,13 +192,13 @@ def cross_validation_partitions(data, fraction, k):
     :rtype: list(tuple(pandas.DateFrame, pandas.DateFrame))
     """
     n = int(fraction * len(data))
-    splits = []
+    partitions = []
     for i in range(k):
         data = data.sample(frac=1)
         train = data[:n]
         validate = data[n:]
-        splits.append((train, validate))
-    return splits
+        partitions.append((train, validate))
+    return partitions
 
 
 def parse_documents(texts, n_threads=-1):
