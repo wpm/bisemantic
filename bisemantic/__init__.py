@@ -10,4 +10,4 @@ text_2 = "text2"
 label = "label"
 
 # noinspection PyUnresolvedReferences
-from bisemantic.main import TextualEquivalenceModel
+from bisemantic.main import TextualEquivalenceModel, cross_validation_partitions

@@ -177,6 +177,29 @@ def embed(text_pairs, maximum_tokens=None):
     return text_embedding_matrices, maximum_tokens
 
 
+def cross_validation_partitions(data, fraction, k):
+    """
+    Split data into set of cross-validation sets.
+
+    :param data: data set
+    :type data: pandas.DataFrame
+    :param fraction: percentage of data to use for training
+    :type fraction: float
+    :param k: number of cross-validation splits
+    :type k: int
+    :return: set of cross-validation splits
+    :rtype: list(tuple(pandas.DateFrame, pandas.DateFrame))
+    """
+    n = int(fraction * len(data))
+    splits = []
+    for i in range(k):
+        data = data.sample(frac=1)
+        train = data[:n]
+        validate = data[n:]
+        splits.append((train, validate))
+    return splits
+
+
 def parse_documents(texts, n_threads=-1):
     """
     Create a set of parsed documents from a set of texts.

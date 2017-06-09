@@ -7,7 +7,7 @@ import textwrap
 import pandas as pd
 
 import bisemantic
-from bisemantic import TextualEquivalenceModel, label, text_1, text_2
+from bisemantic import TextualEquivalenceModel, label, text_1, text_2, cross_validation_partitions
 
 
 def main():
@@ -48,6 +48,17 @@ def create_argument_parser():
     predict_parser.add_argument("--n", type=int, help="number of test samples to use (default all)")
     predict_parser.set_defaults(func=lambda args: predict(args))
 
+    cv_parser = subparsers.add_parser("cross-validation", description=textwrap.dedent("""\
+    Create cross validation data partitions."""), parents=[column_renames], help="cross validation")
+    cv_parser.add_argument("data", type=data_file, help="data to partition")
+    cv_parser.add_argument("fraction", type=float, help="fraction to use for training")
+    cv_parser.add_argument("k", type=int, help="number of splits")
+    cv_parser.add_argument("--prefix", type=str, default="data", help="name prefix of partition files (default data)")
+    cv_parser.add_argument("--output-directory", metavar="DIRECTORY", type=str, default=".",
+                           help="output directory (default working directory)")
+    cv_parser.add_argument("--n", type=int, help="number of samples to use (default all)")
+    cv_parser.set_defaults(func=lambda args: create_cross_validation_partitions(args))
+
     return parser
 
 
@@ -73,6 +84,16 @@ def predict(args):
     logging.info("Predict labels for %d pairs" % len(test))
     model, _ = args.model
     print(pd.DataFrame({"predicted": model.predict(test)}).to_csv())
+
+
+def create_cross_validation_partitions(args):
+    data = fix_columns(args.data.head(args.n),
+                       text_1_name=args.text_1_name, text_2_name=args.text_2_name, label_name=args.label_name)
+    for i, (train_partition, validate_partition) in enumerate(cross_validation_partitions(data, args.fraction, args.k)):
+        train_name, validate_name = [os.path.join(args.output_directory, "%s.%d.%s.csv" % (args.prefix, i + 1, name))
+                                     for name in ["train", "validate"]]
+        train_partition.to_csv(train_name)
+        validate_partition.to_csv(validate_name)
 
 
 def data_file(filename):

@@ -12,17 +12,7 @@ from numpy.testing import assert_array_equal
 
 from bisemantic import TextualEquivalenceModel
 from bisemantic.console import main, data_file, fix_columns
-from bisemantic.main import embed
-
-
-class TestCommandLine(TestCase):
-    def test_no_arguments(self):
-        actual = main_function_output([])
-        self.assertEqual("""usage: bisemantic [-h] [--version] [--log LOG] {train,predict} ...\n""", actual)
-
-    def test_version(self):
-        actual = main_function_output(["--version"])
-        self.assertEqual("""bisemantic 1.0.0\n""", actual)
+from bisemantic.main import embed, cross_validation_partitions
 
 
 class TestPreprocess(TestCase):
@@ -52,6 +42,17 @@ class TestPreprocess(TestCase):
 
     def test_fix_columns_with_invalid_column_name(self):
         self.assertRaises(ValueError, fix_columns, self.train, text_1_name="bogus")
+
+    def test_cross_validate(self):
+        k = 3
+        splits = cross_validation_partitions(self.train, 0.8, k)
+        self.assertEqual(k, len(splits))
+        for i in range(k):
+            s = splits[i]
+            self.assertIsInstance(s[0], pd.DataFrame)
+            self.assertIsInstance(s[1], pd.DataFrame)
+            self.assertEqual(80, len(s[0]))
+            self.assertEqual(20, len(s[1]))
 
 
 class TestModel(TestCase):
@@ -118,12 +119,32 @@ class TestEmbedding(TestCase):
         self.assertEqual(2, maximum_tokens)
 
 
-class TestEndToEnd(TestCase):
+class TestCommandLine(TestCase):
     def setUp(self):
         self.temporary_directory = tempfile.mkdtemp()
         self.model_directory = os.path.join(self.temporary_directory, "model")
 
-    def test_end_to_end(self):
+    def test_no_arguments(self):
+        actual = main_function_output([])
+        self.assertEqual(
+            "usage: bisemantic [-h] [--version] [--log LOG]\n                  {train,predict,cross-validation} ...\n",
+            actual)
+
+    def test_version(self):
+        actual = main_function_output(["--version"])
+        self.assertEqual("""bisemantic 1.0.0\n""", actual)
+
+    def test_cross_validation(self):
+        main_function_output(["cross-validation", "test/resources/train.csv",
+                              "0.8", "3",
+                              "--prefix", "partition",
+                              "--output-directory", self.temporary_directory])
+        for i in range(1, 3):
+            for partition_name in ["train", "validate"]:
+                filename = os.path.join(self.temporary_directory, "partition.%d.%s.csv" % (i, partition_name))
+                self.assertTrue(os.path.isfile(filename), "%s is not a file" % filename)
+
+    def test_train_predict(self):
         main_function_output(["train", "test/resources/train.csv",
                               "--validation", "test/resources/train.csv",
                               "--units", "64",
