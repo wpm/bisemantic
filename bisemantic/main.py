@@ -26,7 +26,7 @@ class TextualEquivalenceModel(object):
         :param validation_data: optional validation data
         :type validation_data: pandas.DataFrame or None
         :return: the trained model and its training history
-        :rtype: (keras.engine.Model, keras.callbacks.History)
+        :rtype: (TextualEquivalenceModel, keras.callbacks.History)
         """
 
         def embed_data_frame(data):
@@ -122,9 +122,9 @@ class TextualEquivalenceModel(object):
             validation_data = (validation_embeddings, validation_labels)
         return self.model.fit(x=training_embeddings, y=training_labels, epochs=epochs, validation_data=validation_data)
 
-    def predict(self, test_data, batch_size=32, verbose=0):
+    def predict(self, test_data):
         test_embeddings, _ = embed(test_data, self.maximum_tokens)
-        probabilities = self.model.predict(test_embeddings, batch_size, verbose)
+        probabilities = self.model.predict(test_embeddings)
         return (probabilities > 0.5).astype('int32').reshape((-1,))
 
     def _embedding_size_is_correct(self, embeddings):

@@ -6,6 +6,7 @@ from unittest import TestCase
 
 import numpy as np
 import pandas as pd
+import shutil
 from keras.callbacks import History
 from numpy.testing import assert_array_equal
 
@@ -58,7 +59,7 @@ class TestModel(TestCase):
         self.assertEqual(300, model.embedding_size)
         self.assertEqual(128, model.lstm_units)
 
-    def test_model(self):
+    def test_train_and_predict(self):
         model, history = TextualEquivalenceModel.train(self.train, 128, 2, self.validate)
         self.assertIsInstance(model, TextualEquivalenceModel)
         self.assertIsInstance(history, History)
@@ -109,10 +110,21 @@ class TestEmbedding(TestCase):
 
 
 class TestEndToEnd(TestCase):
+    def setUp(self):
+        self.temporary_directory = tempfile.mkdtemp()
+        self.model_directory = os.path.join(self.temporary_directory, "model")
+
     def test_end_to_end(self):
         main_function_output(["train", "test/resources/train.csv",
-                              "--validation", "test/resources/train.csv"])
-        main_function_output(["predict", "model", "test/resources/test.csv"])
+                              "--validation", "test/resources/train.csv",
+                              "--units", "64",
+                              "--model", self.model_directory])
+        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
+        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "history.json")))
+        main_function_output(["predict", self.model_directory, "test/resources/test.csv"])
+
+    def tearDown(self):
+        shutil.rmtree(self.temporary_directory)
 
 
 def main_function_output(args):
