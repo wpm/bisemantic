@@ -1,10 +1,11 @@
 import itertools
 import logging
+import math
 
 import numpy as np
 import spacy
 from keras.engine import Model, Input
-from keras.layers import LSTM, multiply, concatenate, Dense
+from keras.layers import LSTM, multiply, concatenate, Dense, Dropout
 from keras.models import load_model
 
 from bisemantic import text_1, text_2, label
@@ -12,7 +13,7 @@ from bisemantic import text_1, text_2, label
 
 class TextualEquivalenceModel(object):
     @classmethod
-    def train(cls, training_data, lstm_units, epochs, clip_tokens=None, validation_data=None):
+    def train(cls, training_data, lstm_units, epochs, dropout=None, clip_tokens=None, validation_data=None):
         """
         Train a model from aligned questions pairs in data frames.
 
@@ -22,6 +23,8 @@ class TextualEquivalenceModel(object):
         :type lstm_units: int
         :param epochs: number of training epochs
         :type epochs: int
+        :param dropout:  dropout rate or None for no dropout
+        :type dropout: float or None
         :param clip_tokens: maximum number of tokens to embed per sample
         :type clip_tokens: int
         :param validation_data: optional validation data
@@ -38,7 +41,7 @@ class TextualEquivalenceModel(object):
             return embeddings, maximum_tokens, embedding_size, labels
 
         training_embeddings, maximum_tokens, embedding_size, training_labels = embed_data_frame(training_data)
-        model = cls.create(maximum_tokens, embedding_size, lstm_units)
+        model = cls.create(maximum_tokens, embedding_size, lstm_units, dropout)
         history = model.fit(training_embeddings, training_labels, epochs=epochs, validation_data=validation_data)
         return model, history
 
@@ -55,7 +58,7 @@ class TextualEquivalenceModel(object):
         return cls(load_model(filename))
 
     @classmethod
-    def create(cls, maximum_tokens, embedding_size, lstm_units):
+    def create(cls, maximum_tokens, embedding_size, lstm_units, dropout):
         """
         Create a model that detects semantic equivalence between text pairs.
 
@@ -68,6 +71,8 @@ class TextualEquivalenceModel(object):
         :type embedding_size: int
         :param lstm_units: number of hidden units in the shared LSTM
         :type lstm_units: int
+        :param dropout:  dropout rate or None for no dropout
+        :type dropout: float or None
         :return: the created model
         :rtype: TextualEquivalenceModel
         """
@@ -86,10 +91,16 @@ class TextualEquivalenceModel(object):
         # negative_r2 = Lambda(lambda x: -x)(r2)
         # d = add([r1, negative_r2])
         # q = multiply([d, d])
-        # lstm_output = concatenate([r1, r2, p, q])
-        lstm_output = concatenate([r1, r2, p])
-        # Use logistic regression to map the concatenated vector to the labels.
-        logistic_regression = Dense(1, activation="sigmoid")(lstm_output)
+        # v = [r1, r2, p, q]
+        v = [r1, r2, p]
+        lstm_output = concatenate(v)
+        if dropout is not None:
+            lstm_output = Dropout(dropout, name="dropout")(lstm_output)
+        # A single-layer perceptron maps the concatenated vector to the labels. See Addair "Duplicate Question Pair
+        # Detection with Deep Learning".
+        m = sum(t.shape[1].value for t in v)
+        perceptron = Dense(math.floor(math.sqrt(m)))(lstm_output)
+        logistic_regression = Dense(1, activation="sigmoid")(perceptron)
         model = Model([input_1, input_2], logistic_regression, "Textual equivalence")
         model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
         return cls(model)
@@ -109,14 +120,26 @@ class TextualEquivalenceModel(object):
     def lstm_units(self):
         return self.model.get_layer("lstm").units
 
+    @property
+    def dropout(self):
+        dropout = self.model.get_layer("dropout")
+        if dropout is not None:
+            dropout = dropout.rate
+        return dropout
+
     def __repr__(self):
-        return "%s(LSTM units = %d, maximum tokens = %d, embedding size = %d)" % \
-               (self.__class__.__name__, self.lstm_units, self.maximum_tokens, self.embedding_size)
+        if self.dropout is None:
+            d = "No dropout"
+        else:
+            d = "dropout = %0.2f" % self.dropout
+        return "%s(LSTM units = %d, maximum tokens = %d, embedding size = %d, %s)" % \
+               (self.__class__.__name__, self.lstm_units, self.maximum_tokens, self.embedding_size, d)
 
     def parameters(self):
         return {"maximum_tokens": self.maximum_tokens,
                 "embedding_size": self.embedding_size,
-                "lstm_units": self.lstm_units}
+                "lstm_units": self.lstm_units,
+                "dropout": self.dropout}
 
     def fit(self, training_embeddings=None, training_labels=None, epochs=1, validation_data=None):
         if training_embeddings is not None:

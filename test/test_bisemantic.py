@@ -64,19 +64,32 @@ class TestModel(TestCase):
         self.test = data_file("test/resources/test.csv")
 
     def test_properties(self):
-        model = TextualEquivalenceModel.create(40, 300, 128)
+        model = TextualEquivalenceModel.create(40, 300, 128, 0.5)
         self.assertEqual(40, model.maximum_tokens)
         self.assertEqual(300, model.embedding_size)
         self.assertEqual(128, model.lstm_units)
-        self.assertEqual({"maximum_tokens": 40, "embedding_size": 300, "lstm_units": 128}, model.parameters())
+        self.assertEqual(0.5, model.dropout)
+        self.assertEqual({"maximum_tokens": 40, "embedding_size": 300, "lstm_units": 128, "dropout": 0.5},
+                         model.parameters())
+
+    def test_stringification(self):
+        model = TextualEquivalenceModel.create(40, 300, 128, 0.5)
+        self.assertEqual(
+            "TextualEquivalenceModel(LSTM units = 128, maximum tokens = 40, embedding size = 300, dropout = 0.50)",
+            str(model))
+        model = TextualEquivalenceModel.create(40, 300, 128, None)
+        self.assertEqual(
+            "TextualEquivalenceModel(LSTM units = 128, maximum tokens = 40, embedding size = 300, No dropout)",
+            str(model))
 
     def test_train_and_predict(self):
         model, history = TextualEquivalenceModel.train(self.train, 128, 2,
-                                                       clip_tokens=30, validation_data=self.validate)
+                                                       dropout=0.5, clip_tokens=30, validation_data=self.validate)
         self.assertIsInstance(model, TextualEquivalenceModel)
         self.assertIsInstance(history, History)
-        self.assertEqual("TextualEquivalenceModel(LSTM units = 128, maximum tokens = 30, embedding size = 300)",
-                         str(model))
+        self.assertEqual(
+            "TextualEquivalenceModel(LSTM units = 128, maximum tokens = 30, embedding size = 300, dropout = 0.50)",
+            str(model))
         predictions = model.predict(self.test)
         self.assertEqual((len(self.test),), predictions.shape)
         self.assertTrue(set(np.unique(predictions)).issubset({0, 1}))
@@ -87,7 +100,7 @@ class TestSerialization(TestCase):
         _, self.filename = tempfile.mkstemp('.h5')
 
     def test_serialization(self):
-        model = TextualEquivalenceModel.create(40, 300, 128)
+        model = TextualEquivalenceModel.create(40, 300, 128, 0.5)
         model.save(self.filename)
         deserialized_model = TextualEquivalenceModel.load(self.filename)
         self.assertIsInstance(deserialized_model, TextualEquivalenceModel)
@@ -150,6 +163,7 @@ class TestCommandLine(TestCase):
         main_function_output(["train", "test/resources/train.csv",
                               "--validation", "test/resources/train.csv",
                               "--units", "64",
+                              "--dropout", "0.5",
                               "--model", self.model_directory])
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
         history_filename = os.path.join(self.model_directory, "history.json")
