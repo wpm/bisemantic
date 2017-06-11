@@ -97,10 +97,10 @@ def train(args):
         model.save(model_filename(args.model_directory_name))
         with open(history_filename(args.model_directory_name), mode="w") as f:
             json.dump({"training-time": training_time,
+                       "training-samples": len(training),
                        "model-parameters": model.parameters(),
-                       "scores": history}, f,
+                       "history": history}, f,
                       sort_keys=True, indent=4, separators=(',', ': '))
-    print(model)
     print("Training time %s" % training_time)
     print("Training: accuracy=%0.4f, loss=%0.4f" % (history["acc"][-1], history["loss"][-1]))
     if validation is not None:

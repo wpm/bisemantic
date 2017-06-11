@@ -46,6 +46,7 @@ class TextualEquivalenceModel(object):
 
         training_embeddings, maximum_tokens, embedding_size, training_labels = embed_data_frame(training_data)
         model = cls.create(maximum_tokens, embedding_size, lstm_units, dropout)
+        logger.info(model)
         history = model.fit(training_embeddings, training_labels, epochs=epochs, validation_data=validation_data)
         return model, history
 

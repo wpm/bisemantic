@@ -173,7 +173,7 @@ class TestCommandLine(TestCase):
         self.assertTrue(os.path.isfile(history_filename))
         with open(history_filename) as f:
             history = json.load(f)
-            self.assertEqual({"training-time", "model-parameters", "scores"}, set(history.keys()))
+            self.assertEqual({"training-time", "training-samples", "model-parameters", "history"}, set(history.keys()))
         main_function_output(["predict", self.model_directory, "test/resources/test.csv"])
 
     def test_train_predict_crossvalidation_fraction(self):
@@ -188,7 +188,7 @@ class TestCommandLine(TestCase):
         self.assertTrue(os.path.isfile(history_filename))
         with open(history_filename) as f:
             history = json.load(f)
-            self.assertEqual({"training-time", "model-parameters", "scores"}, set(history.keys()))
+            self.assertEqual({"training-time", "training-samples", "model-parameters", "history"}, set(history.keys()))
         main_function_output(["predict", self.model_directory, "test/resources/test.csv"])
 
     def tearDown(self):
