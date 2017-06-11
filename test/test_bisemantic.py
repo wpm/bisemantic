@@ -166,6 +166,22 @@ class TestCommandLine(TestCase):
                               "--validation-set", "test/resources/train.csv",
                               "--units", "64",
                               "--dropout", "0.5",
+                              "--epochs", "2",
+                              "--model", self.model_directory])
+        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
+        history_filename = os.path.join(self.model_directory, "history.json")
+        self.assertTrue(os.path.isfile(history_filename))
+        with open(history_filename) as f:
+            history = json.load(f)
+            self.assertEqual({"training-time", "model-parameters", "scores"}, set(history.keys()))
+        main_function_output(["predict", self.model_directory, "test/resources/test.csv"])
+
+    def test_train_predict_crossvalidation_fraction(self):
+        main_function_output(["train", "test/resources/train.csv",
+                              "--validation-fraction", "0.2",
+                              "--units", "64",
+                              "--dropout", "0.5",
+                              "--epochs", "2",
                               "--model", self.model_directory])
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
         history_filename = os.path.join(self.model_directory, "history.json")
