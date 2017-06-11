@@ -142,6 +142,11 @@ class TextualEquivalenceModel(object):
                 "dropout": self.dropout}
 
     def fit(self, training_embeddings=None, training_labels=None, epochs=1, validation_data=None):
+        if training_embeddings is None:
+            n = 0
+        else:
+            n = len(training_embeddings[0])
+        logger.info("Train model: %d samples, %d epochs" % (n, epochs))
         if training_embeddings is not None:
             assert self._embedding_size_is_correct(training_embeddings)
             assert len(training_embeddings[0]) == len(training_labels)
@@ -189,7 +194,7 @@ def embed(text_pairs, maximum_tokens=None):
         uniform_length_document_embedding = np.pad(text_embedding[:maximum_tokens], ((m, 0), (0, 0)), "constant")
         return uniform_length_document_embedding
 
-    logger.debug("Embed %d text pairs" % len(text_pairs))
+    logger.info("Embed %d text pairs" % len(text_pairs))
     # Convert text to embedding vectors.
     text_sets = (text_pairs[text] for text in [text_1, text_2])
     parsed_text_sets = [list(parse_documents(text_set)) for text_set in text_sets]
@@ -223,6 +228,7 @@ def cross_validation_partitions(data, fraction, k):
     :return: tuples of (training data, validation data) for each split
     :rtype: list(tuple(pandas.DateFrame, pandas.DateFrame))
     """
+    logger.info("Cross validation %0.2f, %d partitions" % (fraction, k))
     n = int(fraction * len(data))
     partitions = []
     for i in range(k):

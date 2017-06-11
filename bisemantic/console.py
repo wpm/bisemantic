@@ -15,7 +15,9 @@ def main():
     parser = create_argument_parser()
     args = parser.parse_args()
     configure_logger(args.log.upper(), "%(asctime)-15s %(levelname)-8s %(message)s")
+    logger.info("Start")
     args.func(args)
+    logger.info("Done")
 
 
 def create_argument_parser():
