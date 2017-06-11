@@ -3,6 +3,7 @@ import os
 import shutil
 import sys
 import tempfile
+from argparse import Namespace
 from io import StringIO
 from unittest import TestCase
 
@@ -37,11 +38,12 @@ class TestPreprocess(TestCase):
         self.assertEqual(3, len(actual))
 
     def test_fix_columns_with_no_rename(self):
-        train = fix_columns(self.train)
+        train = fix_columns(self.train, Namespace(text_1_name=None, text_2_name=None, label_name=None))
         assert_array_equal(["text1", "text2", "label"], train.columns)
 
     def test_fix_columns_with_invalid_column_name(self):
-        self.assertRaises(ValueError, fix_columns, self.train, text_1_name="bogus")
+        self.assertRaises(ValueError, fix_columns, self.train,
+                          Namespace(text_1_name="bogus", text_2_name=None, label_name=None))
 
     def test_cross_validate(self):
         k = 3

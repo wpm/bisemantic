@@ -77,8 +77,7 @@ def train(args):
 
     from bisemantic.main import cross_validation_partitions, TextualEquivalenceModel
 
-    training = fix_columns(args.training.head(args.n),
-                           text_1_name=args.text_1_name, text_2_name=args.text_2_name, label_name=args.label_name)
+    training = fix_columns(args.training.head(args.n), args)
     if args.validation_fraction is not None:
         training, validation = cross_validation_partitions(training, 1 - args.validation_fraction, 1)[0]
     else:
@@ -128,8 +127,7 @@ def _set_gpu_fraction(args):
 
 
 def predict(args):
-    test = fix_columns(args.test.head(args.n),
-                       text_1_name=args.text_1_name, text_2_name=args.text_2_name, label_name=args.label_name)
+    test = fix_columns(args.test.head(args.n), args)
     logger.info("Predict labels for %d pairs" % len(test))
     model, _ = args.model
     print(pd.DataFrame({"predicted": model.predict(test)}).to_csv())
@@ -137,8 +135,7 @@ def predict(args):
 
 def create_cross_validation_partitions(args):
     from bisemantic.main import cross_validation_partitions
-    data = fix_columns(args.data.head(args.n),
-                       text_1_name=args.text_1_name, text_2_name=args.text_2_name, label_name=args.label_name)
+    data = fix_columns(args.data.head(args.n), args)
     for i, (train_partition, validate_partition) in enumerate(cross_validation_partitions(data, args.fraction, args.k)):
         train_name, validate_name = [os.path.join(args.output_directory, "%s.%d.%s.csv" % (args.prefix, i + 1, name))
                                      for name in ["train", "validate"]]
@@ -166,27 +163,24 @@ def data_file(filename):
     return data
 
 
-def fix_columns(data, text_1_name=text_1, text_2_name=text_2, label_name=label):
+# noinspection PyUnresolvedReferences
+def fix_columns(data, args):
     """
     Rename columns in an input data frame to the ones bisemantic expects. Drop unused columns. If an argument is None
     the corresponding column must already be in the raw data.
 
     :param data: raw data
     :type data: pandas.DataFrame
-    :param text_1_name: name of the text 1 column in the raw data
-    :type text_1_name: str
-    :param text_2_name: name of the text 2 column in the raw data
-    :type text_2_name: str
-    :param label_name: name of the label column in the raw data
-    :type label_name: str
+    :param args: parsed command line arguments
+    :type args: argparse.Namespace
     :return: data frame containing just the needed columns
     :rtype: pandas.DataFrame
     """
-    for name in [text_1_name, text_2_name, label_name]:
+    for name in [args.text_1_name, args.text_2_name, args.label_name]:
         if name is not None:
             if name not in data.columns:
                 raise ValueError("Missing column %s" % name)
-    data = data.rename(columns={text_1_name: text_1, text_2_name: text_2, label_name: label})
+    data = data.rename(columns={args.text_1_name: text_1, args.text_2_name: text_2, args.label_name: label})
     if label in data.columns:
         columns = [text_1, text_2, label]
     else:
