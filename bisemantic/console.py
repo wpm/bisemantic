@@ -115,8 +115,7 @@ def _set_gpu_fraction(args):
     """
     # noinspection PyPackageRequirements
     import tensorflow as tf
-    # noinspection PyPep8Naming
-    import keras.backend.tensorflow_backend as KTF
+    from keras.backend import tensorflow_backend
 
     def get_session(gpu_fraction):
         num_threads = os.environ.get('OMP_NUM_THREADS')
@@ -128,7 +127,7 @@ def _set_gpu_fraction(args):
         else:
             return tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 
-    KTF.set_session(get_session(args.gpu_fraction))
+    tensorflow_backend.set_session(get_session(args.gpu_fraction))
 
 
 def predict(args):
