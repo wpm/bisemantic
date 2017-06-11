@@ -111,6 +111,7 @@ def train(args):
                        "model-parameters": model.parameters(),
                        "scores": history}, f,
                       sort_keys=True, indent=4, separators=(',', ': '))
+    print(model)
     print("Training time %s" % training_time)
     print("Training: accuracy=%0.4f, loss=%0.4f" % (history["acc"][-1], history["loss"][-1]))
     if validation is not None:
