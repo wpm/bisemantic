@@ -8,7 +8,7 @@ from keras.engine import Model, Input
 from keras.layers import LSTM, multiply, concatenate, Dense, Dropout
 from keras.models import load_model
 
-from bisemantic import text_1, text_2, label
+from bisemantic import text_1, text_2, label, logger
 
 
 class TextualEquivalenceModel(object):
@@ -150,7 +150,7 @@ class TextualEquivalenceModel(object):
             assert self._embedding_size_is_correct(validation_embeddings)
             validation_labels = validation_data[label]
             validation_data = (validation_embeddings, validation_labels)
-        verbose = {logging.INFO: 2, logging.DEBUG: 1}.get(logging.getLogger().getEffectiveLevel(), 0)
+        verbose = {logging.INFO: 2, logging.DEBUG: 1}.get(logger.getEffectiveLevel(), 0)
         return self.model.fit(x=training_embeddings, y=training_labels, epochs=epochs, validation_data=validation_data,
                               verbose=verbose)
 
@@ -189,7 +189,7 @@ def embed(text_pairs, maximum_tokens=None):
         uniform_length_document_embedding = np.pad(text_embedding[:maximum_tokens], ((m, 0), (0, 0)), "constant")
         return uniform_length_document_embedding
 
-    logging.debug("Embed %d text pairs" % len(text_pairs))
+    logger.debug("Embed %d text pairs" % len(text_pairs))
     # Convert text to embedding vectors.
     text_sets = (text_pairs[text] for text in [text_1, text_2])
     parsed_text_sets = [list(parse_documents(text_set)) for text_set in text_sets]
@@ -248,7 +248,7 @@ def parse_documents(texts, n_threads=-1):
     """
     global text_parser
     if text_parser is None:
-        logging.debug("Load text parser")
+        logger.debug("Load text parser")
         text_parser = spacy.load("en", tagger=None, parser=None, entity=None)
     return text_parser.pipe(texts, n_threads=n_threads)
 

@@ -1,6 +1,5 @@
 import argparse
 import json
-import logging
 import os
 import textwrap
 import time
@@ -9,13 +8,13 @@ from datetime import timedelta
 import pandas as pd
 
 import bisemantic
-from bisemantic import text_1, text_2, label
+from bisemantic import text_1, text_2, label, configure_logger, logger
 
 
 def main():
     parser = create_argument_parser()
     args = parser.parse_args()
-    logging.basicConfig(format="%(asctime)-15s %(levelname)-8s %(message)s", level=args.log.upper())
+    configure_logger(args.log.upper(), "%(asctime)-15s %(levelname)-8s %(message)s")
     args.func(args)
 
 
@@ -105,7 +104,7 @@ def train(args):
     training_time = str(timedelta(seconds=time.time() - start))
     history = history.history
     if args.model_directory_name is not None:
-        logging.info("Save model to %s" % args.model_directory_name)
+        logger.info("Save model to %s" % args.model_directory_name)
         model.save(model_filename(args.model_directory_name))
         with open(history_filename(args.model_directory_name), mode="w") as f:
             json.dump({"training-time": training_time,
@@ -121,7 +120,7 @@ def train(args):
 def predict(args):
     test = fix_columns(args.test.head(args.n),
                        text_1_name=args.text_1_name, text_2_name=args.text_2_name, label_name=args.label_name)
-    logging.info("Predict labels for %d pairs" % len(test))
+    logger.info("Predict labels for %d pairs" % len(test))
     model, _ = args.model
     print(pd.DataFrame({"predicted": model.predict(test)}).to_csv())
 
@@ -153,7 +152,7 @@ def data_file(filename):
     data = data.dropna()
     n = len(data)
     if m != n:
-        logging.info("Dropped %d lines with null values from %s" % (m - n, filename))
+        logger.info("Dropped %d lines with null values from %s" % (m - n, filename))
     return data
 
 
