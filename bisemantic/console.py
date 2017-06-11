@@ -72,6 +72,9 @@ def create_argument_parser():
 
 
 def train(args):
+    if args.gpu_fraction is not None:
+        _set_gpu_fraction(args)
+
     from bisemantic.main import cross_validation_partitions, TextualEquivalenceModel
 
     training = fix_columns(args.training.head(args.n),
@@ -80,25 +83,6 @@ def train(args):
         training, validation = cross_validation_partitions(training, 1 - args.validation_fraction, 1)[0]
     else:
         validation = args.validation_set
-
-    # By default, TensorFlow allocates all the available GPU memory. If you want to run multiple processes on the same
-    # machine, you need to change it to allocate a fraction of the memory per process. This option only works when
-    # running on a GPU machine with the TensorFlow backend.
-    if args.gpu_fraction is not None:
-        import tensorflow as tf
-        import keras.backend.tensorflow_backend as KTF
-
-        def get_session(gpu_fraction):
-            num_threads = os.environ.get('OMP_NUM_THREADS')
-            gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_fraction)
-
-            if num_threads:
-                return tf.Session(config=tf.ConfigProto(
-                    gpu_options=gpu_options, intra_op_parallelism_threads=num_threads))
-            else:
-                return tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
-
-        KTF.set_session(get_session(args.gpu_fraction))
 
     start = time.time()
     model, history = TextualEquivalenceModel.train(training, args.units, args.epochs,
@@ -118,6 +102,29 @@ def train(args):
     print("Training: accuracy=%0.4f, loss=%0.4f" % (history["acc"][-1], history["loss"][-1]))
     if validation is not None:
         print("Validation: accuracy=%0.4f, loss=%0.4f" % (history["val_acc"][-1], history["val_loss"][-1]))
+
+
+def _set_gpu_fraction(args):
+    """
+    By default, TensorFlow allocates all the available GPU memory. If you want to run multiple processes on the same
+    machine, you need to change it to allocate a fraction of the memory per process. This option only works when
+    running on a GPU machine with the TensorFlow backend.
+    """
+    # noinspection PyPackageRequirements
+    import tensorflow as tf
+    import keras.backend.tensorflow_backend as KTF
+
+    def get_session(gpu_fraction):
+        num_threads = os.environ.get('OMP_NUM_THREADS')
+        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_fraction)
+
+        if num_threads:
+            return tf.Session(config=tf.ConfigProto(
+                gpu_options=gpu_options, intra_op_parallelism_threads=num_threads))
+        else:
+            return tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+
+    KTF.set_session(get_session(args.gpu_fraction))
 
 
 def predict(args):
@@ -162,7 +169,7 @@ def data_file(filename):
 def fix_columns(data, text_1_name=text_1, text_2_name=text_2, label_name=label):
     """
     Rename columns in an input data frame to the ones bisemantic expects. Drop unused columns. If an argument is None
-    the corresponding column muat already be in the raw data.
+    the corresponding column must already be in the raw data.
 
     :param data: raw data
     :type data: pandas.DataFrame
