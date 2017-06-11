@@ -220,7 +220,7 @@ def cross_validation_partitions(data, fraction, k):
     :type fraction: float
     :param k: number of cross-validation splits
     :type k: int
-    :return: set of cross-validation splits
+    :return: tuples of (training data, validation data) for each split
     :rtype: list(tuple(pandas.DateFrame, pandas.DateFrame))
     """
     n = int(fraction * len(data))

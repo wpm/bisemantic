@@ -161,7 +161,7 @@ class TestCommandLine(TestCase):
 
     def test_train_predict(self):
         main_function_output(["train", "test/resources/train.csv",
-                              "--validation", "test/resources/train.csv",
+                              "--validation-set", "test/resources/train.csv",
                               "--units", "64",
                               "--dropout", "0.5",
                               "--model", self.model_directory])

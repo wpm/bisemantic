@@ -35,7 +35,10 @@ def create_argument_parser():
     train_parser = subparsers.add_parser("train", description=textwrap.dedent("""\
     Train a model to predict textual equivalence."""), parents=[column_renames], help="train model")
     train_parser.add_argument("training", type=data_file, help="training data")
-    train_parser.add_argument("--validation", type=data_file, help="validation data")
+    validation_group = train_parser.add_mutually_exclusive_group()
+    validation_group.add_argument("--validation-set", type=data_file, help="validation data")
+    validation_group.add_argument("--validation-fraction", type=float,
+                                  help="portion of the training data to use as validation")
     train_parser.add_argument("--units", type=int, default=128, help="LSTM hidden layer size (default 128)")
     train_parser.add_argument("--dropout", type=float, help="Dropout rate (default no dropout)")
     train_parser.add_argument("--maximum-tokens", type=int, help="maximum number of tokens to embed per sample")
@@ -68,11 +71,18 @@ def create_argument_parser():
 
 
 def train(args):
-    from bisemantic.main import TextualEquivalenceModel
+    from bisemantic.main import cross_validation_partitions, TextualEquivalenceModel
 
     training = fix_columns(args.training.head(args.n),
                            text_1_name=args.text_1_name, text_2_name=args.text_2_name, label_name=args.label_name)
+    if args.validation_fraction is not None:
+        training, validation = cross_validation_partitions(training, 1 - args.validation_fraction, 1)[0]
+    else:
+        validation = args.validation_set
 
+    # By default, TensorFlow allocates all the available GPU memory. If you want to run multiple processes on the same
+    # machine, you need to change it to allocate a fraction of the memory per process. This option only works when
+    # running on a GPU machine with the TensorFlow backend.
     if args.gpu_fraction is not None:
         import tensorflow as tf
         import keras.backend.tensorflow_backend as KTF
@@ -91,7 +101,7 @@ def train(args):
 
     start = time.time()
     model, history = TextualEquivalenceModel.train(training, args.units, args.epochs,
-                                                   args.dropout, args.maximum_tokens, args.validation)
+                                                   args.dropout, args.maximum_tokens, validation)
     training_time = str(timedelta(seconds=time.time() - start))
     history = history.history
     if args.model_directory_name is not None:
@@ -104,7 +114,7 @@ def train(args):
                       sort_keys=True, indent=4, separators=(',', ': '))
     print("Training time %s" % training_time)
     print("Training: accuracy=%0.4f, loss=%0.4f" % (history["acc"][-1], history["loss"][-1]))
-    if args.validation is not None:
+    if validation is not None:
         print("Validation: accuracy=%0.4f, loss=%0.4f" % (history["val_acc"][-1], history["val_loss"][-1]))
 
 
