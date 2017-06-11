@@ -19,7 +19,7 @@ class TextualEquivalenceModel(object):
     @classmethod
     def train(cls, training_data, lstm_units, epochs, dropout=None, clip_tokens=None, validation_data=None):
         """
-        Train a model from aligned questions pairs in data frames.
+        Train a model from aligned text pairs in data frames.
 
         :param training_data:
         :type training_data: pandas.DataFrame
@@ -83,7 +83,7 @@ class TextualEquivalenceModel(object):
         """
         # Create the model geometry.
         input_shape = (maximum_tokens, embedding_size)
-        # Input two sets of aligned question pairs.
+        # Input two sets of aligned text pairs.
         input_1 = Input(input_shape)
         input_2 = Input(input_shape)
         # Apply the same LSTM to each.
