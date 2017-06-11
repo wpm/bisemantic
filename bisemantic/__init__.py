@@ -1,6 +1,7 @@
 """
 Machine learning models to detect equivalence between pairs of natural language text.
 """
+
 import logging
 
 __version__ = "1.0.0"
@@ -13,6 +14,7 @@ label = "label"
 logger = logging.getLogger(__name__)
 
 
+# noinspection PyShadowingBuiltins
 def configure_logger(level, format):
     logger.setLevel(level)
     h = logging.StreamHandler()

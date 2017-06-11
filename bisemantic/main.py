@@ -1,3 +1,7 @@
+"""
+Core model functionality
+"""
+
 import itertools
 import logging
 import math

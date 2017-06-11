@@ -1,3 +1,7 @@
+"""
+Command line interface
+"""
+
 import argparse
 import json
 import os
@@ -111,6 +115,7 @@ def _set_gpu_fraction(args):
     """
     # noinspection PyPackageRequirements
     import tensorflow as tf
+    # noinspection PyPep8Naming
     import keras.backend.tensorflow_backend as KTF
 
     def get_session(gpu_fraction):
