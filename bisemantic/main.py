@@ -8,6 +8,9 @@ import math
 
 import numpy as np
 import spacy
+import time
+
+from datetime import timedelta
 from keras.engine import Model, Input
 from keras.layers import LSTM, multiply, concatenate, Dense, Dropout
 from keras.models import load_model
@@ -210,6 +213,7 @@ def embed(text_pairs, maximum_tokens=None, parser_threads=-1, parser_batch_size=
         return uniform_length_document_embedding
 
     logger.info("Embed %d text pairs" % len(text_pairs))
+    start = time.time()
     # Convert text to embedding vectors.
     text_sets = (text_pairs[text] for text in [text_1, text_2])
     parsed_text_sets = [list(parse_documents(text_set, parser_threads, parser_batch_size)) for text_set in text_sets]
@@ -227,6 +231,7 @@ def embed(text_pairs, maximum_tokens=None, parser_threads=-1, parser_batch_size=
     # Combine the embeddings into two matrices.
     text_embedding_matrices = [np.stack(uniform_length_text_embeddings) for
                                uniform_length_text_embeddings in uniform_length_text_embedding_sets]
+    logger.debug("Embedded %d text pairs in %s" % (len(text_pairs), timedelta(seconds=time.time() - start)))
     return text_embedding_matrices, maximum_tokens
 
 
