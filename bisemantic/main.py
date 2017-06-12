@@ -18,7 +18,7 @@ from bisemantic import text_1, text_2, label, logger
 class TextualEquivalenceModel(object):
     @classmethod
     def train(cls, training_data, lstm_units, epochs, dropout=None, clip_tokens=None, validation_data=None,
-              parser_threads=-1):
+              parser_threads=-1, parser_batch_size=1000):
         """
         Train a model from aligned text pairs in data frames.
 
@@ -36,13 +36,15 @@ class TextualEquivalenceModel(object):
         :type validation_data: pandas.DataFrame or None
         :param parser_threads: number of text parsing threads
         :type parser_threads: int
+        :param parser_batch_size: the number of texts to buffer
+        :type parser_batch_size: int
         :return: the trained model and its training history
         :rtype: (TextualEquivalenceModel, keras.callbacks.History)
         """
 
         # noinspection PyShadowingNames
         def embed_data_frame(data):
-            embeddings, maximum_tokens = embed(data, clip_tokens, parser_threads)
+            embeddings, maximum_tokens = embed(data, clip_tokens, parser_threads, parser_batch_size)
             labels = data[label]
             embedding_size = embeddings[0].shape[2]
             return embeddings, maximum_tokens, embedding_size, labels
@@ -164,11 +166,12 @@ class TextualEquivalenceModel(object):
             validation_labels = validation_data[label]
             validation_data = (validation_embeddings, validation_labels)
         verbose = {logging.INFO: 2, logging.DEBUG: 1}.get(logger.getEffectiveLevel(), 0)
+        logger.info("Start training")
         return self.model.fit(x=training_embeddings, y=training_labels, epochs=epochs, validation_data=validation_data,
                               verbose=verbose)
 
-    def predict(self, test_data):
-        test_embeddings, _ = embed(test_data, self.maximum_tokens)
+    def predict(self, test_data, parser_threads=-1, parser_batch_size=1000):
+        test_embeddings, _ = embed(test_data, self.maximum_tokens, parser_threads, parser_batch_size)
         probabilities = self.model.predict(test_embeddings)
         return (probabilities > 0.5).astype('int32').reshape((-1,))
 
@@ -179,7 +182,7 @@ class TextualEquivalenceModel(object):
         self.model.save(filename)
 
 
-def embed(text_pairs, maximum_tokens=None, parser_threads=-1):
+def embed(text_pairs, maximum_tokens=None, parser_threads=-1, parser_batch_size=1000):
     """
     Convert text pairs into text embeddings.
 
@@ -189,6 +192,8 @@ def embed(text_pairs, maximum_tokens=None, parser_threads=-1):
     :type maximum_tokens: int
     :param parser_threads: number of text parsing threads
     :type parser_threads: int
+    :param parser_batch_size: the number of texts to buffer
+    :type parser_batch_size: int
     :return: embedding matrices for the text pairs, the maximum number of tokens in the pairs
     :rtype: (list(numpy.array), int)
     """
@@ -207,7 +212,7 @@ def embed(text_pairs, maximum_tokens=None, parser_threads=-1):
     logger.info("Embed %d text pairs" % len(text_pairs))
     # Convert text to embedding vectors.
     text_sets = (text_pairs[text] for text in [text_1, text_2])
-    parsed_text_sets = [list(parse_documents(text_set, parser_threads)) for text_set in text_sets]
+    parsed_text_sets = [list(parse_documents(text_set, parser_threads, parser_batch_size)) for text_set in text_sets]
     # Get the maximum number of tokens from the longest text if not specified.
     if maximum_tokens is None:
         maximum_tokens = max(len(parsed_text) for parsed_text in flatten(parsed_text_sets))
@@ -249,7 +254,7 @@ def cross_validation_partitions(data, fraction, k):
     return partitions
 
 
-def parse_documents(texts, parser_threads=-1):
+def parse_documents(texts, parser_threads=-1, parser_batch_size=1000):
     """
     Create a set of parsed documents from a set of texts.
 
@@ -259,6 +264,8 @@ def parse_documents(texts, parser_threads=-1):
     :type texts: sequence of strings
     :param parser_threads: number of parallel parsing threads
     :type parser_threads: int
+    :param parser_batch_size: the number of texts to buffer
+    :type parser_batch_size: int
     :return: parsed documents
     :rtype: sequence of spacy.Doc
     """
@@ -266,7 +273,7 @@ def parse_documents(texts, parser_threads=-1):
     if text_parser is None:
         logger.debug("Load text parser")
         text_parser = spacy.load("en", tagger=None, parser=None, entity=None)
-    return text_parser.pipe(texts, n_threads=parser_threads)
+    return text_parser.pipe(texts, n_threads=parser_threads, batch_size=parser_batch_size)
 
 
 # Singleton instance of text tokenizer and embedder.

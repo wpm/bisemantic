@@ -37,12 +37,15 @@ def create_argument_parser():
     column_renames.add_argument("--text-2-name", metavar="NAME", help="column containing the second text pair element")
     column_renames.add_argument("--label-name", metavar="NAME", help="column containing the label")
 
-    parser_threads = argparse.ArgumentParser(add_help=False)
-    parser_threads.add_argument("--parser-threads", metavar="THREADS", type=int, default=-1,
-                                help="number of parallel text parsing threads (default maximum possible)")
+    text_parser_options = argparse.ArgumentParser(add_help=False)
+    text_parser_options.add_argument("--parser-threads", metavar="THREADS", type=int, default=-1,
+                                     help="number of parallel text parsing threads (default maximum possible)")
+    text_parser_options.add_argument("--parser-batch-size", metavar="SAMPLES", type=int, default=1000,
+                                     help="batch size passed to text parser")
 
     train_parser = subparsers.add_parser("train", description=textwrap.dedent("""\
-    Train a model to predict textual equivalence."""), parents=[column_renames, parser_threads], help="train model")
+    Train a model to predict textual equivalence."""), parents=[column_renames, text_parser_options],
+                                         help="train model")
     train_parser.add_argument("training", type=data_file, help="training data")
     validation_group = train_parser.add_mutually_exclusive_group()
     validation_group.add_argument("--validation-set", type=data_file, help="validation data")
@@ -59,7 +62,7 @@ def create_argument_parser():
     train_parser.set_defaults(func=lambda args: train(args))
 
     predict_parser = subparsers.add_parser("predict", description=textwrap.dedent("""\
-    Use a model to predict textual equivalence."""), parents=[column_renames, parser_threads],
+    Use a model to predict textual equivalence."""), parents=[column_renames, text_parser_options],
                                            help="predict equivalence")
     predict_parser.add_argument("model", type=model_directory, help="model directory")
     predict_parser.add_argument("test", type=data_file, help="test data")
@@ -94,7 +97,8 @@ def train(args):
 
     start = time.time()
     model, history = TextualEquivalenceModel.train(training, args.units, args.epochs,
-                                                   args.dropout, args.maximum_tokens, validation)
+                                                   args.dropout, args.maximum_tokens, validation,
+                                                   args.parser_threads, args.parser_batch_size)
     training_time = str(timedelta(seconds=time.time() - start))
     history = history.history
     if args.model_directory_name is not None:
@@ -139,7 +143,8 @@ def predict(args):
     test = fix_columns(args.test.head(args.n), args)
     logger.info("Predict labels for %d pairs" % len(test))
     model, _ = args.model
-    print(pd.DataFrame({"predicted": model.predict(test)}).to_csv())
+    predictions = model.predict(test, args.parser_threads, args.parser_batch_size)
+    print(pd.DataFrame({"predicted": predictions}).to_csv())
 
 
 def create_cross_validation_partitions(args):
