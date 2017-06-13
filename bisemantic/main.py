@@ -5,12 +5,11 @@ Core model functionality
 import itertools
 import logging
 import math
+import time
+from datetime import timedelta
 
 import numpy as np
 import spacy
-import time
-
-from datetime import timedelta
 from keras.engine import Model, Input
 from keras.layers import LSTM, multiply, concatenate, Dense, Dropout
 from keras.models import load_model
@@ -154,12 +153,8 @@ class TextualEquivalenceModel(object):
                 "lstm_units": self.lstm_units,
                 "dropout": self.dropout}
 
-    def fit(self, training_embeddings=None, training_labels=None, epochs=1, validation_data=None):
-        if training_embeddings is None:
-            n = 0
-        else:
-            n = len(training_embeddings[0])
-        logger.info("Train model: %d samples, %d epochs" % (n, epochs))
+    def fit(self, training_embeddings, training_labels, epochs=1, validation_data=None):
+        logger.info("Train model: %d samples, %d epochs" % (len(training_embeddings[0]), epochs))
         if training_embeddings is not None:
             assert self._embedding_size_is_correct(training_embeddings)
             assert len(training_embeddings[0]) == len(training_labels)
