@@ -209,8 +209,13 @@ class TextualEquivalenceModel(object):
             validation_data = (validation_embeddings, validation_labels)
         verbose = {logging.INFO: 2, logging.DEBUG: 1}.get(logger.getEffectiveLevel(), 0)
         if model_directory is not None:
-            callbacks = [ModelCheckpoint(filepath=self.model_filename(model_directory), save_best_only=True,
-                                         verbose=verbose)]
+            if validation_data is not None:
+                monitor = "val_loss"
+            else:
+                monitor = "loss"
+            callbacks = [
+                ModelCheckpoint(filepath=self.model_filename(model_directory), monitor=monitor, save_best_only=True,
+                                verbose=verbose)]
         else:
             callbacks = None
         logger.info("Start training")
