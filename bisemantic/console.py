@@ -97,13 +97,13 @@ def train(args):
 
     start = time.time()
     model, history = TextualEquivalenceModel.train(training, args.units, args.epochs,
-                                                   args.dropout, args.maximum_tokens, validation,
+                                                   args.dropout, args.maximum_tokens,
+                                                   validation, args.model_directory_name,
                                                    args.parser_threads, args.parser_batch_size)
     training_time = str(timedelta(seconds=time.time() - start))
     history = history.history
     if args.model_directory_name is not None:
         logger.info("Save model to %s" % args.model_directory_name)
-        model.save(model_filename(args.model_directory_name))
         with open(history_filename(args.model_directory_name), mode="w") as f:
             json.dump({"training-time": training_time,
                        "training-samples": len(training),

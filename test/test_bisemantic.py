@@ -86,7 +86,8 @@ class TestModel(TestCase):
 
     def test_train_and_predict(self):
         model, history = TextualEquivalenceModel.train(self.train, 128, 2,
-                                                       dropout=0.5, clip_tokens=30, validation_data=self.validate)
+                                                       dropout=0.5, clip_tokens=30,
+                                                       validation_data=self.validate, model_directory=None)
         self.assertIsInstance(model, TextualEquivalenceModel)
         self.assertIsInstance(history, History)
         self.assertEqual(

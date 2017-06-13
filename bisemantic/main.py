@@ -9,7 +9,9 @@ import time
 from datetime import timedelta
 
 import numpy as np
+import os
 import spacy
+from keras.callbacks import ModelCheckpoint
 from keras.engine import Model, Input
 from keras.layers import LSTM, multiply, concatenate, Dense, Dropout
 from keras.models import load_model
@@ -19,7 +21,8 @@ from bisemantic import text_1, text_2, label, logger
 
 class TextualEquivalenceModel(object):
     @classmethod
-    def train(cls, training_data, lstm_units, epochs, dropout=None, clip_tokens=None, validation_data=None,
+    def train(cls, training_data, lstm_units, epochs, dropout=None, clip_tokens=None,
+              validation_data=None, model_directory=None,
               parser_threads=-1, parser_batch_size=1000):
         """
         Train a model from aligned text pairs in data frames.
@@ -36,6 +39,8 @@ class TextualEquivalenceModel(object):
         :type clip_tokens: int
         :param validation_data: optional validation data
         :type validation_data: pandas.DataFrame or None
+        :param model_directory: directory in which to write model checkpoints
+        :type model_directory: str or None
         :param parser_threads: number of text parsing threads
         :type parser_threads: int
         :param parser_batch_size: the number of texts to buffer
@@ -54,7 +59,8 @@ class TextualEquivalenceModel(object):
         training_embeddings, maximum_tokens, embedding_size, training_labels = embed_data_frame(training_data)
         model = cls.create(maximum_tokens, embedding_size, lstm_units, dropout)
         logger.info(model)
-        history = model.fit(training_embeddings, training_labels, epochs=epochs, validation_data=validation_data)
+        history = model.fit(training_embeddings, training_labels, epochs=epochs,
+                            validation_data=validation_data, model_directory=model_directory)
         return model, history
 
     @classmethod
@@ -153,7 +159,7 @@ class TextualEquivalenceModel(object):
                 "lstm_units": self.lstm_units,
                 "dropout": self.dropout}
 
-    def fit(self, training_embeddings, training_labels, epochs=1, validation_data=None):
+    def fit(self, training_embeddings, training_labels, epochs=1, validation_data=None, model_directory=None):
         logger.info("Train model: %d samples, %d epochs" % (len(training_embeddings[0]), epochs))
         if training_embeddings is not None:
             assert self._embedding_size_is_correct(training_embeddings)
@@ -164,9 +170,14 @@ class TextualEquivalenceModel(object):
             validation_labels = validation_data[label]
             validation_data = (validation_embeddings, validation_labels)
         verbose = {logging.INFO: 2, logging.DEBUG: 1}.get(logger.getEffectiveLevel(), 0)
+        if model_directory is not None:
+            callbacks = [ModelCheckpoint(filepath=os.path.join(model_directory, "model.h5"), save_best_only=True,
+                                         verbose=verbose)]
+        else:
+            callbacks = None
         logger.info("Start training")
         return self.model.fit(x=training_embeddings, y=training_labels, epochs=epochs, validation_data=validation_data,
-                              verbose=verbose)
+                              callbacks=callbacks, verbose=verbose)
 
     def predict(self, test_data, parser_threads=-1, parser_batch_size=1000):
         test_embeddings, _ = embed(test_data, self.maximum_tokens, parser_threads, parser_batch_size)
