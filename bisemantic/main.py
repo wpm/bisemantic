@@ -5,11 +5,11 @@ Core model functionality
 import itertools
 import logging
 import math
+import os
 import time
 from datetime import timedelta
 
 import numpy as np
-import os
 import spacy
 from keras.callbacks import ModelCheckpoint
 from keras.engine import Model, Input
@@ -27,7 +27,7 @@ class TextualEquivalenceModel(object):
         """
         Train a model from aligned text pairs in data frames.
 
-        :param training_data:
+        :param training_data: text pairs and labels
         :type training_data: pandas.DataFrame
         :param lstm_units: number of hidden units in the LSTM
         :type lstm_units: int
@@ -48,32 +48,70 @@ class TextualEquivalenceModel(object):
         :return: the trained model and its training history
         :rtype: (TextualEquivalenceModel, keras.callbacks.History)
         """
-
-        # noinspection PyShadowingNames
-        def embed_data_frame(data):
-            embeddings, maximum_tokens = embed(data, clip_tokens, parser_threads, parser_batch_size)
-            labels = data[label]
-            embedding_size = embeddings[0].shape[2]
-            return embeddings, maximum_tokens, embedding_size, labels
-
-        training_embeddings, maximum_tokens, embedding_size, training_labels = embed_data_frame(training_data)
+        training_embeddings, maximum_tokens, embedding_size, training_labels = cls.embed_data_frame(training_data,
+                                                                                                    clip_tokens,
+                                                                                                    parser_threads,
+                                                                                                    parser_batch_size)
         model = cls.create(maximum_tokens, embedding_size, lstm_units, dropout)
+        if model_directory is not None:
+            os.makedirs(model_directory)
+            with open(os.path.join(model_directory, "model.info.txt"), "w") as f:
+                f.write(str(model))
+        return cls._train(epochs, model, model_directory, training_embeddings, training_labels, validation_data)
+
+    @classmethod
+    def continue_training(cls, training_data, epochs, validation_data, model_directory,
+                          parser_threads=-1, parser_batch_size=1000):
+        """
+        Continue training a model that was already created by a previous training operation.
+
+        :param training_data: text pairs and labels
+        :type training_data: pandas.DataFrame
+        :param epochs: number of training epochs
+        :type epochs: int
+        :param validation_data: optional validation data
+        :type validation_data: pandas.DataFrame or None
+        :param model_directory: directory in which to write model checkpoints
+        :type model_directory: str or None
+        :param parser_threads: number of text parsing threads
+        :type parser_threads: int
+        :param parser_batch_size: the number of texts to buffer
+        :type parser_batch_size: int
+        :return: the trained model and its training history
+        :rtype: (TextualEquivalenceModel, keras.callbacks.History)
+        """
+        model = cls.load(cls.model_filename(model_directory))
+        training_embeddings, _, __, training_labels = cls.embed_data_frame(training_data, model.maximum_tokens,
+                                                                           parser_threads, parser_batch_size)
+        return cls._train(epochs, model, model_directory, training_embeddings, training_labels, validation_data)
+
+    @classmethod
+    def _train(cls, epochs, model, model_directory, training_embeddings, training_labels, validation_data):
         logger.info(model)
         history = model.fit(training_embeddings, training_labels, epochs=epochs,
                             validation_data=validation_data, model_directory=model_directory)
         return model, history
 
+    @staticmethod
+    def embed_data_frame(data, clip_tokens, parser_threads, parser_batch_size):
+        embeddings, maximum_tokens = embed(data, clip_tokens, parser_threads, parser_batch_size)
+        labels = data[label]
+        embedding_size = embeddings[0].shape[2]
+        return embeddings, maximum_tokens, embedding_size, labels
+
     @classmethod
     def load(cls, filename):
         """
-        Restore a model serialized by TextualEquivalenceModel.save.
-
         :param filename: file name
         :type filename: str
         :return: the restored model
         :rtype: TextualEquivalenceModel
         """
         return cls(load_model(filename))
+
+    @classmethod
+    def load_from_model_directory(cls, model_directory):
+        return cls.load(cls.model_filename(model_directory))
 
     @classmethod
     def create(cls, maximum_tokens, embedding_size, lstm_units, dropout):
@@ -171,7 +209,7 @@ class TextualEquivalenceModel(object):
             validation_data = (validation_embeddings, validation_labels)
         verbose = {logging.INFO: 2, logging.DEBUG: 1}.get(logger.getEffectiveLevel(), 0)
         if model_directory is not None:
-            callbacks = [ModelCheckpoint(filepath=os.path.join(model_directory, "model.h5"), save_best_only=True,
+            callbacks = [ModelCheckpoint(filepath=self.model_filename(model_directory), save_best_only=True,
                                          verbose=verbose)]
         else:
             callbacks = None
@@ -189,6 +227,10 @@ class TextualEquivalenceModel(object):
 
     def save(self, filename):
         self.model.save(filename)
+
+    @staticmethod
+    def model_filename(model_directory):
+        return os.path.join(model_directory, "model.h5")
 
 
 def embed(text_pairs, maximum_tokens=None, parser_threads=-1, parser_batch_size=1000):

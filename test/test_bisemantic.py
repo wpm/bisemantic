@@ -1,4 +1,3 @@
-import json
 import os
 import shutil
 import sys
@@ -12,7 +11,7 @@ import pandas as pd
 from keras.callbacks import History
 from numpy.testing import assert_array_equal
 
-from bisemantic.console import main, data_file, fix_columns
+from bisemantic.console import main, data_file, fix_columns, TrainingHistory
 from bisemantic.main import TextualEquivalenceModel, embed, cross_validation_partitions
 
 
@@ -145,7 +144,7 @@ class TestCommandLine(TestCase):
     def test_no_arguments(self):
         actual = main_function_output([])
         self.assertEqual(
-            "usage: bisemantic [-h] [--version] [--log LOG]\n                  {train,predict,cross-validation} ...\n",
+            "usage: bisemantic [-h] [--version] [--log LOG]\n                  {train,continue,predict,cross-validation} ...\n",
             actual)
 
     def test_version(self):
@@ -170,14 +169,15 @@ class TestCommandLine(TestCase):
                               "--epochs", "2",
                               "--model", self.model_directory])
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
-        history_filename = os.path.join(self.model_directory, "history.json")
-        self.assertTrue(os.path.isfile(history_filename))
-        with open(history_filename) as f:
-            history = json.load(f)
-            self.assertEqual({"training-time", "training-samples", "model-parameters", "history"}, set(history.keys()))
+        training_history_filename = os.path.join(self.model_directory, "training-history.json")
+        self.assertTrue(os.path.isfile(training_history_filename))
+        training_history = TrainingHistory.load(training_history_filename)
+        self.assertEqual("Training history, 1 runs", str(training_history))
+        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.info.txt")))
         main_function_output(["predict", self.model_directory, "test/resources/test.csv"])
 
-    def test_train_predict_crossvalidation_fraction(self):
+    def test_train_predict_crossvalidation_fraction_with_continue(self):
+        # Train a model.
         main_function_output(["train", "test/resources/train.csv",
                               "--validation-fraction", "0.2",
                               "--units", "64",
@@ -185,12 +185,21 @@ class TestCommandLine(TestCase):
                               "--epochs", "2",
                               "--model", self.model_directory])
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
-        history_filename = os.path.join(self.model_directory, "history.json")
-        self.assertTrue(os.path.isfile(history_filename))
-        with open(history_filename) as f:
-            history = json.load(f)
-            self.assertEqual({"training-time", "training-samples", "model-parameters", "history"}, set(history.keys()))
+        training_history_filename = os.path.join(self.model_directory, "training-history.json")
+        self.assertTrue(os.path.isfile(training_history_filename))
+        training_history = TrainingHistory.load(training_history_filename)
+        self.assertEqual("Training history, 1 runs", str(training_history))
+        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.info.txt")))
+        # Use it to make predictions on a test set.
         main_function_output(["predict", self.model_directory, "test/resources/test.csv"])
+        # Train the model some more.
+        main_function_output(["continue",
+                              "test/resources/train.csv",
+                              self.model_directory,
+                              "--validation-fraction", "0.2",
+                              "--epochs", "2"])
+        training_history = TrainingHistory.load(training_history_filename)
+        self.assertEqual("Training history, 2 runs", str(training_history))
 
     def tearDown(self):
         shutil.rmtree(self.temporary_directory)

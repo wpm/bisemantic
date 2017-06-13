@@ -7,7 +7,7 @@ import json
 import os
 import textwrap
 import time
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 import pandas as pd
 
@@ -32,6 +32,7 @@ def create_argument_parser():
 
     subparsers = parser.add_subparsers(title="Text Pair Equivalence")
 
+    # Shared arguments.
     column_renames = argparse.ArgumentParser(add_help=False)
     column_renames.add_argument("--text-1-name", metavar="NAME", help="column containing the first text pair element")
     column_renames.add_argument("--text-2-name", metavar="NAME", help="column containing the second text pair element")
@@ -43,32 +44,49 @@ def create_argument_parser():
     text_parser_options.add_argument("--parser-batch-size", metavar="SAMPLES", type=int, default=1000,
                                      help="batch size passed to text parser")
 
-    train_parser = subparsers.add_parser("train", description=textwrap.dedent("""\
-    Train a model to predict textual equivalence."""), parents=[column_renames, text_parser_options],
-                                         help="train model")
-    train_parser.add_argument("training", type=data_file, help="training data")
-    validation_group = train_parser.add_mutually_exclusive_group()
+    model_parameters = argparse.ArgumentParser(add_help=False)
+    model_parameters.add_argument("--units", type=int, default=128, help="LSTM hidden layer size (default 128)")
+    model_parameters.add_argument("--dropout", type=float, help="Dropout rate (default no dropout)")
+    model_parameters.add_argument("--maximum-tokens", type=int, help="maximum number of tokens to embed per sample")
+
+    training_arguments = argparse.ArgumentParser(add_help=False)
+    training_arguments.add_argument("training", type=data_file, help="training data")
+    validation_group = training_arguments.add_mutually_exclusive_group()
     validation_group.add_argument("--validation-set", type=data_file, help="validation data")
     validation_group.add_argument("--validation-fraction", type=float,
                                   help="portion of the training data to use as validation")
-    train_parser.add_argument("--units", type=int, default=128, help="LSTM hidden layer size (default 128)")
-    train_parser.add_argument("--dropout", type=float, help="Dropout rate (default no dropout)")
-    train_parser.add_argument("--maximum-tokens", type=int, help="maximum number of tokens to embed per sample")
-    train_parser.add_argument("--epochs", type=int, default=10, help="training epochs (default 10)")
-    train_parser.add_argument("--model-directory-name", metavar="MODEL", type=output_directory,
-                              help="output model directory")
-    train_parser.add_argument("--gpu-fraction", type=float, help="apportion this fraction of GPU memory for a process")
-    train_parser.add_argument("--n", type=int, help="number of training samples to use (default all)")
+    training_arguments.add_argument("--epochs", type=int, default=10, help="training epochs (default 10)")
+    training_arguments.add_argument("--gpu-fraction", type=float,
+                                    help="apportion this fraction of GPU memory for a process")
+    training_arguments.add_argument("--n", type=int, help="number of training samples to use (default all)")
+
+    # Train subcommand
+    train_parser = subparsers.add_parser("train", description=textwrap.dedent("""\
+    Train a model to predict textual equivalence."""),
+                                         parents=[column_renames, model_parameters, training_arguments,
+                                                  text_parser_options],
+                                         help="train model")
+    train_parser.add_argument("--model-directory-name", metavar="MODEL", help="output model directory")
     train_parser.set_defaults(func=lambda args: train(args))
 
+    # Continue subcommand
+    continue_parser = subparsers.add_parser("continue", description=textwrap.dedent("""\
+    Continue training a model."""), parents=[column_renames, training_arguments, text_parser_options],
+                                            help="continue training a model")
+    continue_parser.add_argument("model_directory_name", metavar="MODEL",
+                                 help="directory containing previously trained model")
+    continue_parser.set_defaults(func=lambda args: continue_training(args))
+
+    # Predict subcommand
     predict_parser = subparsers.add_parser("predict", description=textwrap.dedent("""\
     Use a model to predict textual equivalence."""), parents=[column_renames, text_parser_options],
                                            help="predict equivalence")
-    predict_parser.add_argument("model", type=model_directory, help="model directory")
+    predict_parser.add_argument("model_directory_name", metavar="MODEL", help="model directory")
     predict_parser.add_argument("test", type=data_file, help="test data")
     predict_parser.add_argument("--n", type=int, help="number of test samples to use (default all)")
     predict_parser.set_defaults(func=lambda args: predict(args))
 
+    # Cross-validation subcommand
     cv_parser = subparsers.add_parser("cross-validation", description=textwrap.dedent("""\
     Create cross validation data partitions."""), parents=[column_renames], help="cross validation")
     cv_parser.add_argument("data", type=data_file, help="data to partition")
@@ -84,10 +102,33 @@ def create_argument_parser():
 
 
 def train(args):
+    from bisemantic.main import TextualEquivalenceModel
+    train_or_continue(args,
+                      lambda a, training, validation:
+                      TextualEquivalenceModel.train(training, args.units, args.epochs,
+                                                    args.dropout, args.maximum_tokens,
+                                                    validation,
+                                                    args.model_directory_name,
+                                                    args.parser_threads,
+                                                    args.parser_batch_size))
+
+
+def continue_training(args):
+    from bisemantic.main import TextualEquivalenceModel
+    train_or_continue(args,
+                      lambda a, training, validation:
+                      TextualEquivalenceModel.continue_training(training, args.epochs,
+                                                                validation,
+                                                                args.model_directory_name,
+                                                                args.parser_threads,
+                                                                args.parser_batch_size))
+
+
+def train_or_continue(args, training_operation):
     if args.gpu_fraction is not None:
         _set_gpu_fraction(args)
 
-    from bisemantic.main import cross_validation_partitions, TextualEquivalenceModel
+    from bisemantic.main import cross_validation_partitions
 
     training = fix_columns(args.training.head(args.n), args)
     if args.validation_fraction is not None:
@@ -96,21 +137,11 @@ def train(args):
         validation = args.validation_set
 
     start = time.time()
-    model, history = TextualEquivalenceModel.train(training, args.units, args.epochs,
-                                                   args.dropout, args.maximum_tokens,
-                                                   validation, args.model_directory_name,
-                                                   args.parser_threads, args.parser_batch_size)
+    model, history = training_operation(args, training, validation)
     training_time = str(timedelta(seconds=time.time() - start))
-    history = history.history
-    if args.model_directory_name is not None:
-        logger.info("Save model to %s" % args.model_directory_name)
-        with open(history_filename(args.model_directory_name), mode="w") as f:
-            json.dump({"training-time": training_time,
-                       "training-samples": len(training),
-                       "model-parameters": model.parameters(),
-                       "history": history}, f,
-                      sort_keys=True, indent=4, separators=(',', ': '))
+    update_model_directory(args.model_directory_name, training_time, len(training), history)
     print("Training time %s" % training_time)
+    history = history.history
     print("Training: accuracy=%0.4f, loss=%0.4f" % (history["acc"][-1], history["loss"][-1]))
     if validation is not None:
         print("Validation: accuracy=%0.4f, loss=%0.4f" % (history["val_acc"][-1], history["val_loss"][-1]))
@@ -140,9 +171,10 @@ def _set_gpu_fraction(args):
 
 
 def predict(args):
+    from bisemantic.main import TextualEquivalenceModel
     test = fix_columns(args.test.head(args.n), args)
     logger.info("Predict labels for %d pairs" % len(test))
-    model, _ = args.model
+    model = TextualEquivalenceModel.load_from_model_directory(args.model_directory_name)
     predictions = model.predict(test, args.parser_threads, args.parser_batch_size)
     print(pd.DataFrame({"predicted": predictions}).to_csv())
 
@@ -202,22 +234,45 @@ def fix_columns(data, args):
     return data[columns]
 
 
-def output_directory(directory_name):
-    os.makedirs(directory_name)
-    return directory_name
+def load_model_directory(directory_name):
+    from main import TextualEquivalenceModel
+    model_filename = os.path.join(directory_name, "model.h5")
+    return TextualEquivalenceModel.load(model_filename)
 
 
-def model_directory(directory_name):
-    from bisemantic.main import TextualEquivalenceModel
-    model = TextualEquivalenceModel.load(model_filename(directory_name))
-    with open(history_filename(directory_name)) as f:
-        history = json.load(f)
-    return model, history
+def update_model_directory(directory_name, training_time, samples, history):
+    training_history_filename = os.path.join(directory_name, "training-history.json")
+    if os.path.isfile(training_history_filename):
+        training_history = TrainingHistory.load(training_history_filename)
+    else:
+        training_history = TrainingHistory()
+    training_history.add_run(training_time, samples, history)
+    training_history.save(training_history_filename)
 
 
-def model_filename(directory_name):
-    return os.path.join(directory_name, "model.h5")
+class TrainingHistory(object):
+    """
+    Record of all the training runs made on a given model. This records the training date, the size of the sample, and
+    the training and validation scores.
+    """
 
+    @classmethod
+    def load(cls, filename):
+        with open(filename) as f:
+            return cls(json.load(f))
 
-def history_filename(directory_name):
-    return os.path.join(directory_name, "history.json")
+    def __init__(self, runs=None):
+        self.runs = runs or []
+
+    def __repr__(self):
+        return "Training history, %d runs" % (len(self.runs))
+
+    def add_run(self, training_time, samples, history):
+        self.runs.append({"training-time": training_time,
+                          "samples": samples,
+                          "history": history.history,
+                          "run-date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+
+    def save(self, filename):
+        with open(filename, "w") as f:
+            json.dump(self.runs, f, sort_keys=True, indent=4, separators=(",", ": "))
