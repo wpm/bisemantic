@@ -2,6 +2,8 @@
 Parse text and represent it as embedding matrices.
 """
 import math
+import time
+from datetime import timedelta
 from itertools import cycle, islice
 
 import numpy as np
@@ -54,6 +56,7 @@ class UniformLengthEmbeddingGenerator(object):
                 # Embeddings for all the data fits in memory and have already been calculated.
                 batches = self._cached_epoch
             else:
+                start = time.time()
                 embedded_text_set_1, embedded_text_set_2, labels = self._parse(block)
                 batches = []
                 if self._has_labels:
@@ -71,6 +74,7 @@ class UniformLengthEmbeddingGenerator(object):
                 if len(self) <= self.block_size:
                     # Embeddings for all the data will fit in memory, so cache them.
                     self._cached_epoch = batches
+                logger.debug("Embedded %d text pairs in %s" % (len(block), str(timedelta(seconds=time.time() - start))))
             for batch in batches:
                 yield batch
 
