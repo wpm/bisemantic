@@ -14,7 +14,7 @@ from numpy.testing import assert_array_equal
 
 from bisemantic.console import main, data_file, fix_columns, TrainingHistory
 from bisemantic.main import TextualEquivalenceModel
-from data import cross_validation_partitions, UniformLengthEmbeddingGenerator
+from bisemantic.data import cross_validation_partitions, UniformLengthEmbeddingGenerator
 
 
 class TestPreprocess(TestCase):

@@ -128,7 +128,7 @@ def train_or_continue(args, training_operation):
     if args.gpu_fraction is not None:
         _set_gpu_fraction(args)
 
-    from data import cross_validation_partitions
+    from bisemantic.data import cross_validation_partitions
 
     training = fix_columns(args.training.head(args.n), args)
     if args.validation_fraction is not None:
@@ -180,7 +180,7 @@ def predict(args):
 
 
 def create_cross_validation_partitions(args):
-    from data import cross_validation_partitions
+    from bisemantic.data import cross_validation_partitions
     data = fix_columns(args.data.head(args.n), args)
     for i, (train_partition, validate_partition) in enumerate(cross_validation_partitions(data, args.fraction, args.k)):
         train_name, validate_name = [os.path.join(args.output_directory, "%s.%d.%s.csv" % (args.prefix, i + 1, name))
@@ -235,7 +235,7 @@ def fix_columns(data, args):
 
 
 def load_model_directory(directory_name):
-    from main import TextualEquivalenceModel
+    from bisemantic.main import TextualEquivalenceModel
     model_filename = os.path.join(directory_name, "model.h5")
     return TextualEquivalenceModel.load(model_filename)
 
