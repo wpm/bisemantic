@@ -4,6 +4,7 @@ import sys
 import tempfile
 from argparse import Namespace
 from io import StringIO
+from itertools import islice
 from unittest import TestCase
 
 import numpy as np
@@ -12,7 +13,8 @@ from keras.callbacks import History
 from numpy.testing import assert_array_equal
 
 from bisemantic.console import main, data_file, fix_columns, TrainingHistory
-from bisemantic.main import TextualEquivalenceModel, embed, cross_validation_partitions
+from bisemantic.main import TextualEquivalenceModel
+from data import cross_validation_partitions, UniformLengthEmbeddingGenerator
 
 
 class TestPreprocess(TestCase):
@@ -54,6 +56,78 @@ class TestPreprocess(TestCase):
             self.assertIsInstance(s[1], pd.DataFrame)
             self.assertEqual(80, len(s[0]))
             self.assertEqual(20, len(s[1]))
+
+
+# "small data" means data size < block size, "big data" means data size > block size.
+class TestDataGenerator(TestCase):
+    def setUp(self):
+        self.train = data_file("test/resources/train.csv")
+        self.test = data_file("test/resources/test.csv")
+
+    def test_small_labeled_data(self):
+        g = UniformLengthEmbeddingGenerator(self.train)
+        # Get two epochs' worth of data.
+        batches = list(islice(g(), 8))
+        self._validate_labeled_epochs(batches, [32, 32, 32, 4], 40)
+
+    def test_small_labeled_data_specified_maximum_tokens(self):
+        g = UniformLengthEmbeddingGenerator(self.train, maximum_tokens=20)
+        # Get two epochs' worth of data.
+        batches = list(islice(g(), 8))
+        self._validate_labeled_epochs(batches, [32, 32, 32, 4], 20)
+
+    def test_small_unlabeled_data(self):
+        g = UniformLengthEmbeddingGenerator(self.test)
+        # Get two epochs' worth of data.
+        batches = list(islice(g(), 8))
+        self._validate_unlabeled_epochs(batches, [9], 20)
+
+    def test_big_labeled_data(self):
+        g = UniformLengthEmbeddingGenerator(self.train, block_size=50)
+        # Get two epochs' worth of data.
+        batches = list(islice(g(), 8))
+        self._validate_labeled_epochs(batches, [32, 18, 32, 18], 40)
+
+    def test_embed_function(self):
+        g, batches_per_epoch = UniformLengthEmbeddingGenerator.embed(self.train)
+        self.assertEqual(4, batches_per_epoch)
+        # Get two epochs' worth of data.
+        batches = list(islice(g, 8))
+        self._validate_labeled_epochs(batches, [32, 32, 32, 4], 40)
+
+    def _validate_labeled_epochs(self, batches, expected_batch_sizes, maximum_tokens):
+        for i in range(len(expected_batch_sizes)):
+            expected_batch_size = expected_batch_sizes[i]
+            # Did we get the data we expected?
+            self.assertIsInstance(batches[i], tuple)
+            self.assertEqual(2, len(batches[i]))
+            embeddings, labels = batches[i]
+            self.assertEqual((expected_batch_size,), labels.shape)
+            self.assertIsInstance(embeddings, list)
+            self.assertEqual(2, len(embeddings))
+            embedding_1, embedding_2 = embeddings
+            self.assertEqual((expected_batch_size, maximum_tokens, 300), embedding_1.shape)
+            self.assertEqual((expected_batch_size, maximum_tokens, 300), embedding_2.shape)
+            self.assertEqual((expected_batch_size,), labels.shape)
+            # Does it repeat after we start the epoch over?
+            (embedding_1_a, embedding_2_a), labels_a = batches[i + 4]
+            assert_array_equal(embedding_1, embedding_1_a)
+            assert_array_equal(embedding_2, embedding_2_a)
+            assert_array_equal(labels, labels_a)
+
+    def _validate_unlabeled_epochs(self, batches, expected_batch_sizes, maximum_tokens):
+        for i in range(len(expected_batch_sizes)):
+            expected_batch_size = expected_batch_sizes[i]
+            # Did we get the data we expected?
+            self.assertIsInstance(batches[i], list)
+            self.assertEqual(2, len(batches[i]))
+            embedding_1, embedding_2 = batches[i]
+            self.assertEqual((expected_batch_size, maximum_tokens, 300), embedding_1.shape)
+            self.assertEqual((expected_batch_size, maximum_tokens, 300), embedding_2.shape)
+            # Does it repeat after we start the epoch over?
+            embedding_1_a, embedding_2_a = batches[i + 4]
+            assert_array_equal(embedding_1, embedding_1_a)
+            assert_array_equal(embedding_2, embedding_2_a)
 
 
 class TestModel(TestCase):
@@ -112,28 +186,6 @@ class TestSerialization(TestCase):
 
     def tearDown(self):
         os.remove(self.filename)
-
-
-class TestEmbedding(TestCase):
-    def setUp(self):
-        self.text_pairs = pd.DataFrame({
-            "text1": ["horse mouse", "red black blue", "heart diamond", "triangle"],
-            "text2": ["cat horse", "red green", "spade spade", "circle square rectangle"],
-        })
-
-    def test_embedding(self):
-        embeddings, maximum_tokens = embed(self.text_pairs)
-        self.assertIsInstance(embeddings, list)
-        self.assertEqual(2, len(embeddings))
-        self.assertEqual((4, 3, 300), embeddings[0].shape)
-        self.assertEqual(3, maximum_tokens)
-
-    def test_embedding_clip(self):
-        embeddings, maximum_tokens = embed(self.text_pairs, maximum_tokens=2)
-        self.assertIsInstance(embeddings, list)
-        self.assertEqual(2, len(embeddings))
-        self.assertEqual((4, 2, 300), embeddings[0].shape)
-        self.assertEqual(2, maximum_tokens)
 
 
 class TestCommandLine(TestCase):

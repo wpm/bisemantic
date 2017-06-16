@@ -2,28 +2,23 @@
 Core model functionality
 """
 
-import itertools
 import logging
 import math
 import os
-import time
-from datetime import timedelta
 
-import numpy as np
-import spacy
 from keras.callbacks import ModelCheckpoint
 from keras.engine import Model, Input
 from keras.layers import LSTM, multiply, concatenate, Dense, Dropout
 from keras.models import load_model
 
-from bisemantic import text_1, text_2, label, logger
+from bisemantic import logger
+from bisemantic.data import UniformLengthEmbeddingGenerator, embedding_size
 
 
 class TextualEquivalenceModel(object):
     @classmethod
     def train(cls, training_data, lstm_units, epochs, dropout=None, clip_tokens=None,
-              validation_data=None, model_directory=None,
-              parser_threads=-1, parser_batch_size=1000):
+              validation_data=None, model_directory=None, parser_threads=-1, parser_batch_size=1000):
         """
         Train a model from aligned text pairs in data frames.
 
@@ -48,16 +43,14 @@ class TextualEquivalenceModel(object):
         :return: the trained model and its training history
         :rtype: (TextualEquivalenceModel, keras.callbacks.History)
         """
-        training_embeddings, maximum_tokens, embedding_size, training_labels = cls.embed_data_frame(training_data,
-                                                                                                    clip_tokens,
-                                                                                                    parser_threads,
-                                                                                                    parser_batch_size)
-        model = cls.create(maximum_tokens, embedding_size, lstm_units, dropout)
+        training = UniformLengthEmbeddingGenerator(training_data, maximum_tokens=clip_tokens,
+                                                   parser_threads=parser_threads, parser_batch_size=parser_batch_size)
+        model = cls.create(training.maximum_tokens, embedding_size(), lstm_units, dropout)
         if model_directory is not None:
             os.makedirs(model_directory)
             with open(os.path.join(model_directory, "model.info.txt"), "w") as f:
                 f.write(str(model))
-        return cls._train(epochs, model, model_directory, training_embeddings, training_labels, validation_data)
+        return cls._train(epochs, model, model_directory, training, validation_data, parser_threads, parser_batch_size)
 
     @classmethod
     def continue_training(cls, training_data, epochs, validation_data, model_directory,
@@ -81,23 +74,16 @@ class TextualEquivalenceModel(object):
         :rtype: (TextualEquivalenceModel, keras.callbacks.History)
         """
         model = cls.load(cls.model_filename(model_directory))
-        training_embeddings, _, __, training_labels = cls.embed_data_frame(training_data, model.maximum_tokens,
-                                                                           parser_threads, parser_batch_size)
-        return cls._train(epochs, model, model_directory, training_embeddings, training_labels, validation_data)
+        training = UniformLengthEmbeddingGenerator(training_data, maximum_tokens=model.maximum_tokens,
+                                                   parser_threads=parser_threads, parser_batch_size=parser_batch_size)
+        return cls._train(epochs, model, model_directory, training, validation_data, parser_threads, parser_batch_size)
 
     @classmethod
-    def _train(cls, epochs, model, model_directory, training_embeddings, training_labels, validation_data):
+    def _train(cls, epochs, model, model_directory, training, validation_data, parser_threads, parser_batch_size):
         logger.info(model)
-        history = model.fit(training_embeddings, training_labels, epochs=epochs,
-                            validation_data=validation_data, model_directory=model_directory)
+        history = model.fit(training, epochs=epochs, validation_data=validation_data, model_directory=model_directory,
+                            parser_threads=parser_threads, parser_batch_size=parser_batch_size)
         return model, history
-
-    @staticmethod
-    def embed_data_frame(data, clip_tokens, parser_threads, parser_batch_size):
-        embeddings, maximum_tokens = embed(data, clip_tokens, parser_threads, parser_batch_size)
-        labels = data[label]
-        embedding_size = embeddings[0].shape[2]
-        return embeddings, maximum_tokens, embedding_size, labels
 
     @classmethod
     def load(cls, filename):
@@ -113,6 +99,7 @@ class TextualEquivalenceModel(object):
     def load_from_model_directory(cls, model_directory):
         return cls.load(cls.model_filename(model_directory))
 
+    # noinspection PyShadowingNames
     @classmethod
     def create(cls, maximum_tokens, embedding_size, lstm_units, dropout):
         """
@@ -197,16 +184,16 @@ class TextualEquivalenceModel(object):
                 "lstm_units": self.lstm_units,
                 "dropout": self.dropout}
 
-    def fit(self, training_embeddings, training_labels, epochs=1, validation_data=None, model_directory=None):
-        logger.info("Train model: %d samples, %d epochs" % (len(training_embeddings[0]), epochs))
-        if training_embeddings is not None:
-            assert self._embedding_size_is_correct(training_embeddings)
-            assert len(training_embeddings[0]) == len(training_labels)
+    def fit(self, training, epochs=1, validation_data=None, model_directory=None,
+            parser_threads=-1, parser_batch_size=1000):
+        logger.info("Train model: %d samples, %d epochs" % (len(training), epochs))
         if validation_data is not None:
-            validation_embeddings, _ = embed(validation_data, self.maximum_tokens)
-            assert self._embedding_size_is_correct(validation_embeddings)
-            validation_labels = validation_data[label]
-            validation_data = (validation_embeddings, validation_labels)
+            validation_embeddings, validation_steps = \
+                UniformLengthEmbeddingGenerator.embed(validation_data, maximum_tokens=self.maximum_tokens,
+                                                      parser_threads=parser_threads,
+                                                      parser_batch_size=parser_batch_size)
+        else:
+            validation_embeddings = validation_steps = None
         verbose = {logging.INFO: 2, logging.DEBUG: 1}.get(logger.getEffectiveLevel(), 0)
         if model_directory is not None:
             if validation_data is not None:
@@ -219,16 +206,16 @@ class TextualEquivalenceModel(object):
         else:
             callbacks = None
         logger.info("Start training")
-        return self.model.fit(x=training_embeddings, y=training_labels, epochs=epochs, validation_data=validation_data,
-                              callbacks=callbacks, verbose=verbose)
+        return self.model.fit_generator(generator=training(), steps_per_epoch=training.batches_per_epoch, epochs=epochs,
+                                        validation_data=validation_embeddings, validation_steps=validation_steps,
+                                        callbacks=callbacks, verbose=verbose)
 
     def predict(self, test_data, parser_threads=-1, parser_batch_size=1000):
-        test_embeddings, _ = embed(test_data, self.maximum_tokens, parser_threads, parser_batch_size)
-        probabilities = self.model.predict(test_embeddings)
+        test, steps = UniformLengthEmbeddingGenerator.embed(test_data, maximum_tokens=self.maximum_tokens,
+                                                            parser_threads=parser_threads,
+                                                            parser_batch_size=parser_batch_size)
+        probabilities = self.model.predict_generator(generator=test, steps=steps)
         return (probabilities > 0.5).astype('int32').reshape((-1,))
-
-    def _embedding_size_is_correct(self, embeddings):
-        return embeddings[0].shape[1:] == (self.maximum_tokens, self.embedding_size)
 
     def save(self, filename):
         self.model.save(filename)
@@ -236,103 +223,3 @@ class TextualEquivalenceModel(object):
     @staticmethod
     def model_filename(model_directory):
         return os.path.join(model_directory, "model.h5")
-
-
-def embed(text_pairs, maximum_tokens=None, parser_threads=-1, parser_batch_size=1000):
-    """
-    Convert text pairs into text embeddings.
-
-    :param text_pairs: text pairs
-    :type text_pairs: pandas.DataFrame
-    :param maximum_tokens: maximum number of tokens to embed per sample
-    :type maximum_tokens: int
-    :param parser_threads: number of text parsing threads
-    :type parser_threads: int
-    :param parser_batch_size: the number of texts to buffer
-    :type parser_batch_size: int
-    :return: embedding matrices for the text pairs, the maximum number of tokens in the pairs
-    :rtype: (list(numpy.array), int)
-    """
-
-    def flatten(xs):
-        return itertools.chain(*xs)
-
-    def embed_text(parsed_text):
-        return np.array([token.vector for token in parsed_text])
-
-    def pad(text_embedding):
-        m = max(maximum_tokens - text_embedding.shape[0], 0)
-        uniform_length_document_embedding = np.pad(text_embedding[:maximum_tokens], ((m, 0), (0, 0)), "constant")
-        return uniform_length_document_embedding
-
-    logger.info("Embed %d text pairs" % len(text_pairs))
-    start = time.time()
-    # Convert text to embedding vectors.
-    text_sets = (text_pairs[text] for text in [text_1, text_2])
-    parsed_text_sets = [list(parse_documents(text_set, parser_threads, parser_batch_size)) for text_set in text_sets]
-    # Get the maximum number of tokens from the longest text if not specified.
-    if maximum_tokens is None:
-        maximum_tokens = max(len(parsed_text) for parsed_text in flatten(parsed_text_sets))
-    # Build embeddings from the parsed texts.
-    text_embedding_sets = [[embed_text(parsed_text) for parsed_text in parsed_text_set]
-                           for parsed_text_set in parsed_text_sets]
-    # Pad the embeddings to be of equal length.
-    uniform_length_text_embedding_sets = []
-    for text_embedding_set in text_embedding_sets:
-        uniform_length_text_embeddings = [pad(text_embedding) for text_embedding in text_embedding_set]
-        uniform_length_text_embedding_sets.append(uniform_length_text_embeddings)
-    # Combine the embeddings into two matrices.
-    text_embedding_matrices = [np.stack(uniform_length_text_embeddings) for
-                               uniform_length_text_embeddings in uniform_length_text_embedding_sets]
-    logger.debug("Embedded %d text pairs in %s" % (len(text_pairs), timedelta(seconds=time.time() - start)))
-    return text_embedding_matrices, maximum_tokens
-
-
-def cross_validation_partitions(data, fraction, k):
-    """
-    Partition data into of cross-validation sets.
-
-    :param data: data set
-    :type data: pandas.DataFrame
-    :param fraction: percentage of data to use for training
-    :type fraction: float
-    :param k: number of cross-validation splits
-    :type k: int
-    :return: tuples of (training data, validation data) for each split
-    :rtype: list(tuple(pandas.DateFrame, pandas.DateFrame))
-    """
-    logger.info("Cross validation %0.2f, %d partitions" % (fraction, k))
-    n = int(fraction * len(data))
-    partitions = []
-    for i in range(k):
-        data = data.sample(frac=1)
-        train = data[:n]
-        validate = data[n:]
-        partitions.append((train, validate))
-    return partitions
-
-
-def parse_documents(texts, parser_threads=-1, parser_batch_size=1000):
-    """
-    Create a set of parsed documents from a set of texts.
-
-    Parsed documents are sequences of tokens whose embedding vectors can be looked up.
-
-    :param texts: text documents to parse
-    :type texts: sequence of strings
-    :param parser_threads: number of parallel parsing threads
-    :type parser_threads: int
-    :param parser_batch_size: the number of texts to buffer
-    :type parser_batch_size: int
-    :return: parsed documents
-    :rtype: sequence of spacy.Doc
-    """
-    global text_parser
-    if text_parser is None:
-        logger.debug("Load text parser")
-        text_parser = spacy.load("en", tagger=None, parser=None, entity=None)
-    return text_parser.pipe(texts, n_threads=parser_threads, batch_size=parser_batch_size)
-
-
-# Singleton instance of text tokenizer and embedder.
-text_parser = None

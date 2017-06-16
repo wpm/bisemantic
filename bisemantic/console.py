@@ -128,7 +128,7 @@ def train_or_continue(args, training_operation):
     if args.gpu_fraction is not None:
         _set_gpu_fraction(args)
 
-    from bisemantic.main import cross_validation_partitions
+    from data import cross_validation_partitions
 
     training = fix_columns(args.training.head(args.n), args)
     if args.validation_fraction is not None:
@@ -153,11 +153,11 @@ def _set_gpu_fraction(args):
     machine, you need to change it to allocate a fraction of the memory per process. This option only works when
     running on a GPU machine with the TensorFlow backend.
     """
-    # noinspection PyPackageRequirements
-    import tensorflow as tf
     from keras.backend import tensorflow_backend
 
     def get_session(gpu_fraction):
+        # noinspection PyPackageRequirements
+        import tensorflow as tf
         num_threads = os.environ.get('OMP_NUM_THREADS')
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_fraction)
 
@@ -180,7 +180,7 @@ def predict(args):
 
 
 def create_cross_validation_partitions(args):
-    from bisemantic.main import cross_validation_partitions
+    from data import cross_validation_partitions
     data = fix_columns(args.data.head(args.n), args)
     for i, (train_partition, validate_partition) in enumerate(cross_validation_partitions(data, args.fraction, args.k)):
         train_name, validate_name = [os.path.join(args.output_directory, "%s.%d.%s.csv" % (args.prefix, i + 1, name))
