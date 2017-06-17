@@ -80,7 +80,7 @@ class TextPairEmbeddingGenerator(object):
 
 def cross_validation_partitions(data, fraction, k):
     """
-    Partition data into of cross-validation sets.
+    Partition data into cross-validation sets.
 
     :param data: data set
     :type data: pandas.DataFrame
