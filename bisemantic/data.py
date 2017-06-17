@@ -2,136 +2,75 @@
 Parse text and represent it as embedding matrices.
 """
 import math
-import time
-from datetime import timedelta
-from itertools import cycle, islice
+from itertools import cycle
 
 import numpy as np
 import spacy
+from pandas import DataFrame
+from toolz import partition_all
 
 from bisemantic import logger, text_1, text_2, label
 
 
-class UniformLengthEmbeddingGenerator(object):
-    @classmethod
-    def embed(cls, data, batch_size=32, maximum_tokens=None, block_size=100000,
-              parser_threads=-1, parser_batch_size=1000):
-        g = cls(data, batch_size, maximum_tokens, block_size, parser_threads, parser_batch_size)
-        return g(), g.batches_per_epoch
-
-    def __init__(self, data, batch_size=32, maximum_tokens=None, block_size=100000,
-                 parser_threads=-1, parser_batch_size=1000):
-        assert set(data.columns) in [{text_1, text_2, label}, {text_1, text_2}]
-        self._has_labels = label in data.columns
+class TextPairEmbeddingGenerator(object):
+    def __init__(self, data, maximum_tokens=None, batch_size=32):
         self.data = data
         self.batch_size = batch_size
-        self.maximum_tokens = maximum_tokens
-        self.block_size = block_size
-        self.parser_threads = parser_threads
-        self.parser_batch_size = parser_batch_size
         self.batches_per_epoch = math.ceil(len(self) / self.batch_size)
-        self._cached_epoch = None
+        self._labeled = label in self.data.columns
         if maximum_tokens is None:
-            self.maximum_tokens = self._longest_text()
-
-    def _longest_text(self):
-        maximum_tokens = 0
-        blocks_per_epoch = math.ceil(len(self) / self.block_size)
-        for block in islice(self._blocks(), blocks_per_epoch):
-            for embedded_text_set in self._parse(block)[:2]:
-                m = max(embedded_text.shape[0] for embedded_text in embedded_text_set)
-                maximum_tokens = max(m, maximum_tokens)
-        return maximum_tokens
+            m1 = max(len(document) for document in parse_documents(self.data[text_1]))
+            m2 = max(len(document) for document in parse_documents(self.data[text_2]))
+            maximum_tokens = max(m1, m2)
+        self.maximum_tokens = maximum_tokens
 
     def __len__(self):
         """
-        :return: number of samples in the data set
+        :return: number of samples in the data
         :rtype: int
         """
         return len(self.data)
 
+    def __repr__(self):
+        return "%s: %d samples, batch size %d, maximum tokens %s" % (
+            self.__class__.__name__, len(self), self.batch_size, self.maximum_tokens)
+
     def __call__(self):
-        for block in self._blocks():
-            if self._cached_epoch is not None:
-                # Embeddings for all the data fits in memory and have already been calculated.
-                batches = self._cached_epoch
-            else:
-                start = time.time()
-                embedded_text_set_1, embedded_text_set_2, labels = self._parse(block)
-                batches = []
-                if self._has_labels:
-                    batch_generator = self._batches(embedded_text_set_1, embedded_text_set_2, labels)
-                    for embedded_batch_1, embedded_batch_2, labels_batch in batch_generator:
-                        embedded_matrix_1 = self._embedding_matrix(embedded_batch_1)
-                        embedded_matrix_2 = self._embedding_matrix(embedded_batch_2)
-                        batches.append(([embedded_matrix_1, embedded_matrix_2], labels_batch))
-                else:
-                    batch_generator = self._batches(embedded_text_set_1, embedded_text_set_2)
-                    for embedded_batch_1, embedded_batch_2 in batch_generator:
-                        embedded_matrix_1 = self._embedding_matrix(embedded_batch_1)
-                        embedded_matrix_2 = self._embedding_matrix(embedded_batch_2)
-                        batches.append([embedded_matrix_1, embedded_matrix_2])
-                if len(self) <= self.block_size:
-                    # Embeddings for all the data will fit in memory, so cache them.
-                    self._cached_epoch = batches
-                logger.debug("Embedded %d text pairs in %s" % (len(block), str(timedelta(seconds=time.time() - start))))
-            for batch in batches:
-                yield batch
+        for batch_data in cycle(self._batches()):
+            yield self._embed_batch(batch_data)
 
-    def _blocks(self):
+    def _batches(self):
         """
-        Loop eternally over consecutive blocks of data.
+        Partition the data into consecutive data sets of the specified batch size.
 
-        If the block size is larger than the data, this will just repeatedly yield the entire data set.
-
-        :return: iterator over slices of the input data frame
-        :rtype: iterator over pandas.DataFrame
+        :return: batched data
+        :rtype: DataFrame iterator
         """
-        n = len(self.data)
-        return cycle(self.data[i:i + self.block_size] for i in range(0, n, self.block_size))
-
-    def _batches(self, *sequences):
-        """
-        Make one pass through a set of equal-length sequences, yielding consecutive batches.
-
-        :param sequences:
-        :type sequences: list of list
-        :return: tuple of corresponding batches from each of the sequences
-        :rtype: iterator over tuple
-        """
-        for i in range(0, len(sequences[0]), self.batch_size):
-            yield tuple(sequence[i: i + self.batch_size] for sequence in sequences)
-
-    def _parse(self, block):
-        """
-        Given text pairs and corresponding labels, convert the text pairs to embedding vectors.
-
-        If no labels are present in the data set, None is returned for labels.
-
-        :param block: text pairs and labels
-        :type block: pandas.DataFrame
-        :return: lists of embedded text sets for each element of the text pairs and the label corresponding labels
-        :rtype: (list(numpy.array), list(numpy.array), numpy.array or None)
-        """
-        text_set_1, text_set_2 = block[text_1], block[text_2]
-        if self._has_labels:
-            labels = block[label]
+        t1 = partition_all(self.batch_size, self.data[text_1])
+        t2 = partition_all(self.batch_size, self.data[text_2])
+        if self._labeled:
+            l = partition_all(self.batch_size, self.data[label])
+            batches = zip(t1, t2, l)
         else:
-            labels = None
-        embedded_text_set_1 = self._embed_text_set(text_set_1)
-        embedded_text_set_2 = self._embed_text_set(text_set_2)
-        return embedded_text_set_1, embedded_text_set_2, labels
+            batches = zip(t1, t2)
+        for batch in batches:
+            if self._labeled:
+                columns = [text_1, text_2, label]
+            else:
+                columns = [text_1, text_2]
+            yield DataFrame(dict(zip(columns, batch)), columns=columns)
+
+    def _embed_batch(self, batch_data):
+        batch = [self._embed_text_set(batch_data[text_1]), self._embed_text_set(batch_data[text_2])]
+        if self._labeled:
+            batch = (batch, batch_data[label])
+        return batch
 
     def _embed_text_set(self, text_set):
-        return [self._embed_text(parsed_text)
-                for parsed_text in parse_documents(text_set, self.parser_threads, self.parser_batch_size)]
-
-    @staticmethod
-    def _embed_text(parsed_text):
-        return np.array([token.vector for token in parsed_text])
-
-    def _embedding_matrix(self, embedded_text_set):
-        return np.stack(self._pad(text_embedding) for text_embedding in embedded_text_set)
+        embeddings = []
+        for parsed_text in parse_documents(text_set):
+            embeddings.append(self._pad(np.array([token.vector for token in parsed_text])))
+        return np.stack(embeddings)
 
     def _pad(self, text_embedding):
         m = max(self.maximum_tokens - text_embedding.shape[0], 0)
@@ -163,7 +102,7 @@ def cross_validation_partitions(data, fraction, k):
     return partitions
 
 
-def parse_documents(texts, parser_threads=-1, parser_batch_size=1000):
+def parse_documents(texts):
     """
     Create a set of parsed documents from a set of texts.
 
@@ -171,15 +110,10 @@ def parse_documents(texts, parser_threads=-1, parser_batch_size=1000):
 
     :param texts: text documents to parse
     :type texts: sequence of strings
-    :param parser_threads: number of parallel parsing threads
-    :type parser_threads: int
-    :param parser_batch_size: the number of texts to buffer
-    :type parser_batch_size: int
     :return: parsed documents
     :rtype: sequence of spacy.Doc
     """
-    logger.debug("Parse %d texts" % len(texts))
-    return _load_text_parser().pipe(texts, n_threads=parser_threads, batch_size=parser_batch_size)
+    return _load_text_parser().pipe(texts)
 
 
 def embedding_size():

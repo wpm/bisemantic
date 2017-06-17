@@ -38,11 +38,8 @@ def create_argument_parser():
     column_renames.add_argument("--text-2-name", metavar="NAME", help="column containing the second text pair element")
     column_renames.add_argument("--label-name", metavar="NAME", help="column containing the label")
 
-    text_parser_options = argparse.ArgumentParser(add_help=False)
-    text_parser_options.add_argument("--parser-threads", metavar="THREADS", type=int, default=-1,
-                                     help="number of parallel text parsing threads (default maximum possible)")
-    text_parser_options.add_argument("--parser-batch-size", metavar="SAMPLES", type=int, default=1000,
-                                     help="batch size passed to text parser")
+    embedding_options = argparse.ArgumentParser(add_help=False)
+    embedding_options.add_argument("--batch-size", type=int, default=32, help="number samples per batch (default 32)")
 
     model_parameters = argparse.ArgumentParser(add_help=False)
     model_parameters.add_argument("--units", type=int, default=128, help="LSTM hidden layer size (default 128)")
@@ -64,14 +61,14 @@ def create_argument_parser():
     train_parser = subparsers.add_parser("train", description=textwrap.dedent("""\
     Train a model to predict textual equivalence."""),
                                          parents=[column_renames, model_parameters, training_arguments,
-                                                  text_parser_options],
+                                                  embedding_options],
                                          help="train model")
     train_parser.add_argument("--model-directory-name", metavar="MODEL", help="output model directory")
     train_parser.set_defaults(func=lambda args: train(args))
 
     # Continue subcommand
     continue_parser = subparsers.add_parser("continue", description=textwrap.dedent("""\
-    Continue training a model."""), parents=[column_renames, training_arguments, text_parser_options],
+    Continue training a model."""), parents=[column_renames, training_arguments, embedding_options],
                                             help="continue training a model")
     continue_parser.add_argument("model_directory_name", metavar="MODEL",
                                  help="directory containing previously trained model")
@@ -79,7 +76,8 @@ def create_argument_parser():
 
     # Predict subcommand
     predict_parser = subparsers.add_parser("predict", description=textwrap.dedent("""\
-    Use a model to predict textual equivalence."""), parents=[column_renames, text_parser_options],
+    Use a model to predict textual equivalence."""),
+                                           parents=[column_renames, embedding_options],
                                            help="predict equivalence")
     predict_parser.add_argument("model_directory_name", metavar="MODEL", help="model directory")
     predict_parser.add_argument("test", type=data_file, help="test data")
@@ -89,10 +87,10 @@ def create_argument_parser():
     # Cross-validation subcommand
     cv_parser = subparsers.add_parser("cross-validation", description=textwrap.dedent("""\
     Create cross validation data partitions."""), parents=[column_renames], help="cross validation")
-    cv_parser.add_argument("data", type=data_file, help="data to partition")
+    cv_parser.add_argument("data", type=data_file, help="data to _batches")
     cv_parser.add_argument("fraction", type=float, help="fraction to use for training")
     cv_parser.add_argument("k", type=int, help="number of splits")
-    cv_parser.add_argument("--prefix", type=str, default="data", help="name prefix of partition files (default data)")
+    cv_parser.add_argument("--prefix", type=str, default="data", help="name prefix of _batches files (default data)")
     cv_parser.add_argument("--output-directory", metavar="DIRECTORY", type=str, default=".",
                            help="output directory (default working directory)")
     cv_parser.add_argument("--n", type=int, help="number of samples to use (default all)")
@@ -106,22 +104,18 @@ def train(args):
     train_or_continue(args,
                       lambda a, training, validation:
                       TextualEquivalenceModel.train(training, args.units, args.epochs,
-                                                    args.dropout, args.maximum_tokens,
-                                                    validation,
-                                                    args.model_directory_name,
-                                                    args.parser_threads,
-                                                    args.parser_batch_size))
+                                                    dropout=args.dropout, clip_tokens=args.maximum_tokens,
+                                                    batch_size=args.batch_size,
+                                                    validation_data=validation,
+                                                    model_directory=args.model_directory_name))
 
 
 def continue_training(args):
     from bisemantic.main import TextualEquivalenceModel
     train_or_continue(args,
                       lambda a, training, validation:
-                      TextualEquivalenceModel.continue_training(training, args.epochs,
-                                                                validation,
-                                                                args.model_directory_name,
-                                                                args.parser_threads,
-                                                                args.parser_batch_size))
+                      TextualEquivalenceModel.continue_training(training, args.epochs, args.model_directory_name,
+                                                                batch_size=args.batch_size, validation_data=validation))
 
 
 def train_or_continue(args, training_operation):
@@ -175,7 +169,7 @@ def predict(args):
     test = fix_columns(args.test.head(args.n), args)
     logger.info("Predict labels for %d pairs" % len(test))
     model = TextualEquivalenceModel.load_from_model_directory(args.model_directory_name)
-    predictions = model.predict(test, args.parser_threads, args.parser_batch_size)
+    predictions = model.predict(test, batch_size=args.batch_size)
     print(pd.DataFrame({"predicted": predictions}).to_csv())
 
 

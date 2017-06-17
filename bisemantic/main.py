@@ -12,13 +12,13 @@ from keras.layers import LSTM, multiply, concatenate, Dense, Dropout
 from keras.models import load_model
 
 from bisemantic import logger
-from bisemantic.data import UniformLengthEmbeddingGenerator, embedding_size
+from bisemantic.data import TextPairEmbeddingGenerator, embedding_size
 
 
 class TextualEquivalenceModel(object):
     @classmethod
     def train(cls, training_data, lstm_units, epochs, dropout=None, clip_tokens=None,
-              validation_data=None, model_directory=None, parser_threads=-1, parser_batch_size=1000):
+              batch_size=32, validation_data=None, model_directory=None):
         """
         Train a model from aligned text pairs in data frames.
 
@@ -32,29 +32,25 @@ class TextualEquivalenceModel(object):
         :type dropout: float or None
         :param clip_tokens: maximum number of tokens to embed per sample
         :type clip_tokens: int
+        :param batch_size: number of samples per batch
+        :type batch_size: int
         :param validation_data: optional validation data
         :type validation_data: pandas.DataFrame or None
         :param model_directory: directory in which to write model checkpoints
         :type model_directory: str or None
-        :param parser_threads: number of text parsing threads
-        :type parser_threads: int
-        :param parser_batch_size: the number of texts to buffer
-        :type parser_batch_size: int
         :return: the trained model and its training history
         :rtype: (TextualEquivalenceModel, keras.callbacks.History)
         """
-        training = UniformLengthEmbeddingGenerator(training_data, maximum_tokens=clip_tokens,
-                                                   parser_threads=parser_threads, parser_batch_size=parser_batch_size)
+        training = TextPairEmbeddingGenerator(training_data, batch_size=batch_size, maximum_tokens=clip_tokens)
         model = cls.create(training.maximum_tokens, embedding_size(), lstm_units, dropout)
         if model_directory is not None:
             os.makedirs(model_directory)
             with open(os.path.join(model_directory, "model.info.txt"), "w") as f:
                 f.write(str(model))
-        return cls._train(epochs, model, model_directory, training, validation_data, parser_threads, parser_batch_size)
+        return cls._train(epochs, model, model_directory, training, validation_data)
 
     @classmethod
-    def continue_training(cls, training_data, epochs, validation_data, model_directory,
-                          parser_threads=-1, parser_batch_size=1000):
+    def continue_training(cls, training_data, epochs, model_directory, batch_size=32, validation_data=None):
         """
         Continue training a model that was already created by a previous training operation.
 
@@ -62,27 +58,23 @@ class TextualEquivalenceModel(object):
         :type training_data: pandas.DataFrame
         :param epochs: number of training epochs
         :type epochs: int
-        :param validation_data: optional validation data
-        :type validation_data: pandas.DataFrame or None
         :param model_directory: directory in which to write model checkpoints
         :type model_directory: str or None
-        :param parser_threads: number of text parsing threads
-        :type parser_threads: int
-        :param parser_batch_size: the number of texts to buffer
-        :type parser_batch_size: int
+        :param batch_size: number of samples per batch
+        :type batch_size: int
+        :param validation_data: optional validation data
+        :type validation_data: pandas.DataFrame or None
         :return: the trained model and its training history
         :rtype: (TextualEquivalenceModel, keras.callbacks.History)
         """
         model = cls.load(cls.model_filename(model_directory))
-        training = UniformLengthEmbeddingGenerator(training_data, maximum_tokens=model.maximum_tokens,
-                                                   parser_threads=parser_threads, parser_batch_size=parser_batch_size)
-        return cls._train(epochs, model, model_directory, training, validation_data, parser_threads, parser_batch_size)
+        training = TextPairEmbeddingGenerator(training_data, maximum_tokens=model.maximum_tokens, batch_size=batch_size)
+        return cls._train(epochs, model, model_directory, training, validation_data)
 
     @classmethod
-    def _train(cls, epochs, model, model_directory, training, validation_data, parser_threads, parser_batch_size):
+    def _train(cls, epochs, model, model_directory, training, validation_data):
         logger.info(model)
-        history = model.fit(training, epochs=epochs, validation_data=validation_data, model_directory=model_directory,
-                            parser_threads=parser_threads, parser_batch_size=parser_batch_size)
+        history = model.fit(training, epochs=epochs, validation_data=validation_data, model_directory=model_directory)
         return model, history
 
     @classmethod
@@ -184,14 +176,11 @@ class TextualEquivalenceModel(object):
                 "lstm_units": self.lstm_units,
                 "dropout": self.dropout}
 
-    def fit(self, training, epochs=1, validation_data=None, model_directory=None,
-            parser_threads=-1, parser_batch_size=1000):
+    def fit(self, training, epochs=1, validation_data=None, model_directory=None):
         logger.info("Train model: %d samples, %d epochs" % (len(training), epochs))
         if validation_data is not None:
-            validation_embeddings, validation_steps = \
-                UniformLengthEmbeddingGenerator.embed(validation_data, maximum_tokens=self.maximum_tokens,
-                                                      parser_threads=parser_threads,
-                                                      parser_batch_size=parser_batch_size)
+            g = TextPairEmbeddingGenerator(validation_data, maximum_tokens=self.maximum_tokens)
+            validation_embeddings, validation_steps = g(), g.batches_per_epoch
         else:
             validation_embeddings = validation_steps = None
         verbose = {logging.INFO: 2, logging.DEBUG: 1}.get(logger.getEffectiveLevel(), 0)
@@ -210,11 +199,9 @@ class TextualEquivalenceModel(object):
                                         validation_data=validation_embeddings, validation_steps=validation_steps,
                                         callbacks=callbacks, verbose=verbose)
 
-    def predict(self, test_data, parser_threads=-1, parser_batch_size=1000):
-        test, steps = UniformLengthEmbeddingGenerator.embed(test_data, maximum_tokens=self.maximum_tokens,
-                                                            parser_threads=parser_threads,
-                                                            parser_batch_size=parser_batch_size)
-        probabilities = self.model.predict_generator(generator=test, steps=steps)
+    def predict(self, test_data, batch_size=32):
+        g = TextPairEmbeddingGenerator(test_data, maximum_tokens=self.maximum_tokens, batch_size=batch_size)
+        probabilities = self.model.predict_generator(generator=g(), steps=g.batches_per_epoch)
         return (probabilities > 0.5).astype('int32').reshape((-1,))
 
     def save(self, filename):
