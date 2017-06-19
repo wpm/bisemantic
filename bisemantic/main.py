@@ -134,7 +134,7 @@ class TextualEquivalenceModel(object):
         # A single-layer perceptron maps the concatenated vector to the labels. See Addair "Duplicate Question Pair
         # Detection with Deep Learning".
         m = sum(t.shape[1].value for t in v)
-        perceptron = Dense(math.floor(math.sqrt(m)))(lstm_output)
+        perceptron = Dense(math.floor(math.sqrt(m)), activation="relu")(lstm_output)
         logistic_regression = Dense(1, activation="sigmoid")(perceptron)
         model = Model([input_1, input_2], logistic_regression, "Textual equivalence")
         model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
