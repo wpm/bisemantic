@@ -172,6 +172,11 @@ class TestModel(TestCase):
         self.assertEqual((len(self.test),), predictions.shape)
         self.assertTrue(set(np.unique(predictions)).issubset({0, 1}))
 
+    def test_train_and_predict_no_validation(self):
+        model, history = TextualEquivalenceModel.train(self.train, 128, 2, dropout=0.5, maximum_tokens=30)
+        self.assertIsInstance(model, TextualEquivalenceModel)
+        self.assertIsInstance(history, History)
+
 
 class TestSerialization(TestCase):
     def setUp(self):
