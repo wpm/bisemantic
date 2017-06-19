@@ -53,8 +53,6 @@ def create_argument_parser():
     validation_group.add_argument("--validation-fraction", type=float,
                                   help="portion of the training data to use as validation")
     training_arguments.add_argument("--epochs", type=int, default=10, help="training epochs (default 10)")
-    training_arguments.add_argument("--gpu-fraction", type=float,
-                                    help="apportion this fraction of GPU memory for a process")
     training_arguments.add_argument("--n", type=int, help="number of training samples to use (default all)")
 
     # Train subcommand
@@ -119,9 +117,6 @@ def continue_training(args):
 
 
 def train_or_continue(args, training_operation):
-    if args.gpu_fraction is not None:
-        _set_gpu_fraction(args)
-
     from bisemantic.data import cross_validation_partitions
 
     training = fix_columns(args.training.head(args.n), args)
@@ -139,29 +134,6 @@ def train_or_continue(args, training_operation):
     print("Training: accuracy=%0.4f, loss=%0.4f" % (history["acc"][-1], history["loss"][-1]))
     if validation is not None:
         print("Validation: accuracy=%0.4f, loss=%0.4f" % (history["val_acc"][-1], history["val_loss"][-1]))
-
-
-def _set_gpu_fraction(args):
-    """
-    By default, TensorFlow allocates all the available GPU memory. If you want to run multiple processes on the same
-    machine, you need to change it to allocate a fraction of the memory per process. This option only works when
-    running on a GPU machine with the TensorFlow backend.
-    """
-    from keras.backend import tensorflow_backend
-
-    def get_session(gpu_fraction):
-        # noinspection PyPackageRequirements
-        import tensorflow as tf
-        num_threads = os.environ.get('OMP_NUM_THREADS')
-        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=gpu_fraction)
-
-        if num_threads:
-            return tf.Session(config=tf.ConfigProto(
-                gpu_options=gpu_options, intra_op_parallelism_threads=num_threads))
-        else:
-            return tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
-
-    tensorflow_backend.set_session(get_session(args.gpu_fraction))
 
 
 def predict(args):
