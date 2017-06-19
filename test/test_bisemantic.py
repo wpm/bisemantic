@@ -72,7 +72,7 @@ class TestTextPairEmbeddingGenerator(TestCase):
         self._validate_unlabeled_batches(two_epochs, g.batches_per_epoch, 20, [4, 4, 1] * 2)
 
     def test_embed_labeled(self):
-        g = TextPairEmbeddingGenerator(self.labeled)
+        g = TextPairEmbeddingGenerator(self.labeled, batch_size=32)
         self.assertEqual(100, len(g))
         self.assertEqual("TextPairEmbeddingGenerator: 100 samples, batch size 32, maximum tokens 40", str(g))
         self.assertEqual(4, g.batches_per_epoch)
@@ -80,7 +80,7 @@ class TestTextPairEmbeddingGenerator(TestCase):
         self._validate_labeled_batches(two_epochs, g.batches_per_epoch, 40, [32, 32, 32, 4] * 2)
 
     def test_embed_labeled_specified_maximum_tokens(self):
-        g = TextPairEmbeddingGenerator(self.labeled, maximum_tokens=10)
+        g = TextPairEmbeddingGenerator(self.labeled, batch_size=32, maximum_tokens=10)
         self.assertEqual(100, len(g))
         self.assertEqual("TextPairEmbeddingGenerator: 100 samples, batch size 32, maximum tokens 10", str(g))
         self.assertEqual(4, g.batches_per_epoch)

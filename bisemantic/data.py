@@ -13,7 +13,7 @@ from bisemantic import logger, text_1, text_2, label
 
 
 class TextPairEmbeddingGenerator(object):
-    def __init__(self, data, maximum_tokens=None, batch_size=32):
+    def __init__(self, data, maximum_tokens=None, batch_size=2048):
         self.data = data
         self.batch_size = batch_size
         self.batches_per_epoch = math.ceil(len(self) / self.batch_size)

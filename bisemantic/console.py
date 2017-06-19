@@ -39,7 +39,8 @@ def create_argument_parser():
     column_renames.add_argument("--label-name", metavar="NAME", help="column containing the label")
 
     embedding_options = argparse.ArgumentParser(add_help=False)
-    embedding_options.add_argument("--batch-size", type=int, default=32, help="number samples per batch (default 32)")
+    embedding_options.add_argument("--batch-size", type=int, default=2048,
+                                   help="number samples per batch (default 2048)")
 
     model_parameters = argparse.ArgumentParser(add_help=False)
     model_parameters.add_argument("--units", type=int, default=128, help="LSTM hidden layer size (default 128)")

@@ -18,7 +18,7 @@ from bisemantic.data import TextPairEmbeddingGenerator, embedding_size
 class TextualEquivalenceModel(object):
     @classmethod
     def train(cls, training_data, lstm_units, epochs, dropout=None, maximum_tokens=None,
-              batch_size=32, validation_data=None, model_directory=None):
+              batch_size=2048, validation_data=None, model_directory=None):
         """
         Train a model from aligned text pairs in data frames.
 
@@ -50,7 +50,7 @@ class TextualEquivalenceModel(object):
         return cls._train(epochs, model, model_directory, training, validation_data)
 
     @classmethod
-    def continue_training(cls, training_data, epochs, model_directory, batch_size=32, validation_data=None):
+    def continue_training(cls, training_data, epochs, model_directory, batch_size=2048, validation_data=None):
         """
         Continue training a model that was already created by a previous training operation.
 
@@ -177,7 +177,7 @@ class TextualEquivalenceModel(object):
                 "dropout": self.dropout}
 
     def fit(self, training, epochs=1, validation_data=None, model_directory=None):
-        logger.info("Train model: %d samples, %d epochs" % (len(training), epochs))
+        logger.info("Train model: %d samples, %d epochs, batch size %d" % (len(training), epochs, training.batch_size))
         if validation_data is not None:
             g = TextPairEmbeddingGenerator(validation_data, maximum_tokens=self.maximum_tokens)
             validation_embeddings, validation_steps = g(), g.batches_per_epoch
@@ -199,7 +199,7 @@ class TextualEquivalenceModel(object):
                                         validation_data=validation_embeddings, validation_steps=validation_steps,
                                         callbacks=callbacks, verbose=verbose)
 
-    def predict(self, test_data, batch_size=32):
+    def predict(self, test_data, batch_size=2048):
         g = TextPairEmbeddingGenerator(test_data, maximum_tokens=self.maximum_tokens, batch_size=batch_size)
         probabilities = self.model.predict_generator(generator=g(), steps=g.batches_per_epoch)
         return (probabilities > 0.5).astype('int32').reshape((-1,))
