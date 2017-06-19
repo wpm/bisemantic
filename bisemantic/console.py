@@ -44,7 +44,8 @@ def create_argument_parser():
     model_parameters = argparse.ArgumentParser(add_help=False)
     model_parameters.add_argument("--units", type=int, default=128, help="LSTM hidden layer size (default 128)")
     model_parameters.add_argument("--dropout", type=float, help="Dropout rate (default no dropout)")
-    model_parameters.add_argument("--maximum-tokens", type=int, help="maximum number of tokens to embed per sample")
+    model_parameters.add_argument("--maximum-tokens", type=int,
+                                  help="maximum number of tokens to embed per sample (default longest in the data)")
 
     training_arguments = argparse.ArgumentParser(add_help=False)
     training_arguments.add_argument("training", type=data_file, help="training data")
@@ -57,7 +58,15 @@ def create_argument_parser():
 
     # Train subcommand
     train_parser = subparsers.add_parser("train", description=textwrap.dedent("""\
-    Train a model to predict textual equivalence."""),
+    Train a model to predict textual equivalence.
+    
+    Training data is in a CSV document with column labels text1, text2, and label.
+    Command line options may be used to specify different column labels.
+    
+    The generated model is saved in a directory.
+    
+    You may optionally specify either a separate labeled data file for validation or a portion of the training data
+    to use as validation."""),
                                          parents=[column_renames, model_parameters, training_arguments,
                                                   embedding_options],
                                          help="train model")
@@ -66,7 +75,10 @@ def create_argument_parser():
 
     # Continue subcommand
     continue_parser = subparsers.add_parser("continue", description=textwrap.dedent("""\
-    Continue training a model."""), parents=[column_renames, training_arguments, embedding_options],
+    Continue training a model.
+    
+    The updated model information is written to the original model directory."""),
+                                            parents=[column_renames, training_arguments, embedding_options],
                                             help="continue training a model")
     continue_parser.add_argument("model_directory_name", metavar="MODEL",
                                  help="directory containing previously trained model")
@@ -85,10 +97,10 @@ def create_argument_parser():
     # Cross-validation subcommand
     cv_parser = subparsers.add_parser("cross-validation", description=textwrap.dedent("""\
     Create cross validation data partitions."""), parents=[column_renames], help="cross validation")
-    cv_parser.add_argument("data", type=data_file, help="data to _batches")
+    cv_parser.add_argument("data", type=data_file, help="data to partition")
     cv_parser.add_argument("fraction", type=float, help="fraction to use for training")
     cv_parser.add_argument("k", type=int, help="number of splits")
-    cv_parser.add_argument("--prefix", type=str, default="data", help="name prefix of _batches files (default data)")
+    cv_parser.add_argument("--prefix", type=str, default="data", help="name prefix of partition files (default data)")
     cv_parser.add_argument("--output-directory", metavar="DIRECTORY", type=str, default=".",
                            help="output directory (default working directory)")
     cv_parser.add_argument("--n", type=int, help="number of samples to use (default all)")
