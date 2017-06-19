@@ -228,12 +228,6 @@ def fix_columns(data, args):
     return data[columns]
 
 
-def load_model_directory(directory_name):
-    from bisemantic.main import TextualEquivalenceModel
-    model_filename = os.path.join(directory_name, "model.h5")
-    return TextualEquivalenceModel.load(model_filename)
-
-
 def update_model_directory(directory_name, training_time, samples, history):
     training_history_filename = os.path.join(directory_name, "training-history.json")
     if os.path.isfile(training_history_filename):
