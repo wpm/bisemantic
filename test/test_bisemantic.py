@@ -139,6 +139,8 @@ class TestModel(TestCase):
         self.train = data[:n]
         self.validate = data[n:]
         self.test = data_file("test/resources/test.csv")
+        self.temporary_directory = tempfile.mkdtemp()
+        self.model_directory = os.path.join(self.temporary_directory, "model")
 
     def test_properties(self):
         model = TextualEquivalenceModel.create(40, 300, 128, 0.5)
@@ -162,20 +164,34 @@ class TestModel(TestCase):
     def test_train_and_predict(self):
         model, history = TextualEquivalenceModel.train(self.train, 128, 2,
                                                        dropout=0.5, maximum_tokens=30,
-                                                       validation_data=self.validate, model_directory=None)
-        self.assertIsInstance(model, TextualEquivalenceModel)
-        self.assertIsInstance(history, History)
+                                                       validation_data=self.validate,
+                                                       model_directory=self.model_directory)
         self.assertEqual(
             "TextualEquivalenceModel(LSTM units = 128, maximum tokens = 30, embedding size = 300, dropout = 0.50)",
             str(model))
+        self.assertIsInstance(model, TextualEquivalenceModel)
+        self.assertIsInstance(history, History)
+        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.info.txt")))
+        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
         predictions = model.predict(self.test)
         self.assertEqual((len(self.test),), predictions.shape)
         self.assertTrue(set(np.unique(predictions)).issubset({0, 1}))
 
-    def test_train_and_predict_no_validation(self):
-        model, history = TextualEquivalenceModel.train(self.train, 128, 2, dropout=0.5, maximum_tokens=30)
+    def test_train_no_validation(self):
+        model, history = TextualEquivalenceModel.train(self.train.head(20), 128, 1, dropout=0.5,
+                                                       maximum_tokens=30, model_directory=self.model_directory)
+        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.info.txt")))
+        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
         self.assertIsInstance(model, TextualEquivalenceModel)
         self.assertIsInstance(history, History)
+
+    def test_train_no_model_directory(self):
+        model, history = TextualEquivalenceModel.train(self.train.head(20), 128, 1, dropout=0.5, maximum_tokens=30)
+        self.assertIsInstance(model, TextualEquivalenceModel)
+        self.assertIsInstance(history, History)
+
+    def tearDown(self):
+        shutil.rmtree(self.temporary_directory)
 
 
 class TestSerialization(TestCase):
