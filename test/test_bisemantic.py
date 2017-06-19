@@ -7,7 +7,6 @@ from io import StringIO
 from itertools import islice
 from unittest import TestCase
 
-import numpy as np
 import pandas as pd
 from keras.callbacks import History
 from numpy.testing import assert_array_equal
@@ -161,6 +160,7 @@ class TestModel(TestCase):
             "TextualEquivalenceModel(LSTM units = 128, maximum tokens = 40, embedding size = 300, No dropout)",
             str(model))
 
+    # noinspection PyUnresolvedReferences
     def test_train_and_predict(self):
         model, history = TextualEquivalenceModel.train(self.train, 128, 2,
                                                        dropout=0.5, maximum_tokens=30,
@@ -175,7 +175,8 @@ class TestModel(TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
         predictions = model.predict(self.test)
         self.assertEqual((len(self.test),), predictions.shape)
-        self.assertTrue(set(np.unique(predictions)).issubset({0, 1}))
+        self.assertTrue((predictions >= 0).all())
+        self.assertTrue((predictions <= 1).all())
 
     def test_train_no_validation(self):
         model, history = TextualEquivalenceModel.train(self.train.head(20), 128, 1, dropout=0.5,

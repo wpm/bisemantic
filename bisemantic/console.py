@@ -87,7 +87,7 @@ def create_argument_parser():
 
     # Predict subcommand
     predict_parser = subparsers.add_parser("predict", description=textwrap.dedent("""\
-    Use a model to predict textual equivalence."""),
+    Use a model to predict the probability of textual equivalence."""),
                                            parents=[column_renames, embedding_options],
                                            help="predict equivalence")
     predict_parser.add_argument("model_directory_name", metavar="MODEL", help="model directory")
@@ -156,7 +156,7 @@ def predict(args):
     logger.info("Predict labels for %d pairs" % len(test))
     model = TextualEquivalenceModel.load_from_model_directory(args.model_directory_name)
     predictions = model.predict(test, batch_size=args.batch_size)
-    print(pd.DataFrame({"predicted": predictions}).to_csv())
+    print(pd.DataFrame({"probability": predictions}).to_csv())
 
 
 def create_cross_validation_partitions(args):

@@ -202,7 +202,7 @@ class TextualEquivalenceModel(object):
     def predict(self, test_data, batch_size=2048):
         g = TextPairEmbeddingGenerator(test_data, maximum_tokens=self.maximum_tokens, batch_size=batch_size)
         probabilities = self.model.predict_generator(generator=g(), steps=g.batches_per_epoch)
-        return (probabilities > 0.5).astype('int32').reshape((-1,))
+        return probabilities.reshape((-1,))
 
     def save(self, filename):
         self.model.save(filename)
