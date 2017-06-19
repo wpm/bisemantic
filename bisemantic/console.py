@@ -141,7 +141,8 @@ def train_or_continue(args, training_operation):
     start = time.time()
     model, history = training_operation(args, training, validation)
     training_time = str(timedelta(seconds=time.time() - start))
-    update_model_directory(args.model_directory_name, training_time, len(training), history)
+    if args.model_directory_name is not None:
+        update_model_directory(args.model_directory_name, training_time, len(training), history)
     print("Training time %s" % training_time)
     history = history.history
     print("Training: accuracy=%0.4f, loss=%0.4f" % (history["acc"][-1], history["loss"][-1]))
