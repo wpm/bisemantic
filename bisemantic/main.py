@@ -17,7 +17,7 @@ from bisemantic.data import TextPairEmbeddingGenerator, embedding_size
 
 class TextualEquivalenceModel(object):
     @classmethod
-    def train(cls, training_data, lstm_units, epochs, dropout=None, clip_tokens=None,
+    def train(cls, training_data, lstm_units, epochs, dropout=None, maximum_tokens=None,
               batch_size=32, validation_data=None, model_directory=None):
         """
         Train a model from aligned text pairs in data frames.
@@ -30,8 +30,8 @@ class TextualEquivalenceModel(object):
         :type epochs: int
         :param dropout:  dropout rate or None for no dropout
         :type dropout: float or None
-        :param clip_tokens: maximum number of tokens to embed per sample
-        :type clip_tokens: int
+        :param maximum_tokens: maximum number of tokens to embed per sample
+        :type maximum_tokens: int
         :param batch_size: number of samples per batch
         :type batch_size: int
         :param validation_data: optional validation data
@@ -41,7 +41,7 @@ class TextualEquivalenceModel(object):
         :return: the trained model and its training history
         :rtype: (TextualEquivalenceModel, keras.callbacks.History)
         """
-        training = TextPairEmbeddingGenerator(training_data, batch_size=batch_size, maximum_tokens=clip_tokens)
+        training = TextPairEmbeddingGenerator(training_data, batch_size=batch_size, maximum_tokens=maximum_tokens)
         model = cls.create(training.maximum_tokens, embedding_size(), lstm_units, dropout)
         if model_directory is not None:
             os.makedirs(model_directory)

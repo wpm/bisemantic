@@ -104,7 +104,7 @@ def train(args):
     train_or_continue(args,
                       lambda a, training, validation:
                       TextualEquivalenceModel.train(training, args.units, args.epochs,
-                                                    dropout=args.dropout, clip_tokens=args.maximum_tokens,
+                                                    dropout=args.dropout, maximum_tokens=args.maximum_tokens,
                                                     batch_size=args.batch_size,
                                                     validation_data=validation,
                                                     model_directory=args.model_directory_name))

@@ -19,8 +19,8 @@ class TextPairEmbeddingGenerator(object):
         self.batches_per_epoch = math.ceil(len(self) / self.batch_size)
         self._labeled = label in self.data.columns
         if maximum_tokens is None:
-            m1 = max(len(document) for document in parse_documents(self.data[text_1]))
-            m2 = max(len(document) for document in parse_documents(self.data[text_2]))
+            m1 = max(len(document) for document in parse_texts(self.data[text_1]))
+            m2 = max(len(document) for document in parse_texts(self.data[text_2]))
             maximum_tokens = max(m1, m2)
         self.maximum_tokens = maximum_tokens
 
@@ -68,7 +68,7 @@ class TextPairEmbeddingGenerator(object):
 
     def _embed_text_set(self, text_set):
         embeddings = []
-        for parsed_text in parse_documents(text_set):
+        for parsed_text in parse_texts(text_set):
             embeddings.append(self._pad(np.array([token.vector for token in parsed_text])))
         return np.stack(embeddings)
 
@@ -102,7 +102,7 @@ def cross_validation_partitions(data, fraction, k):
     return partitions
 
 
-def parse_documents(texts):
+def parse_texts(texts):
     """
     Create a set of parsed documents from a set of texts.
 
