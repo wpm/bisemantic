@@ -36,6 +36,12 @@ class TextPairEmbeddingGenerator(object):
             self.__class__.__name__, len(self), self.batch_size, self.maximum_tokens)
 
     def __call__(self):
+        """
+        Iterate eternally over the data yielding batches.
+
+        :return: batches of embedded text matrices and optionally labels
+        :rtype: [numpy.array, numpy.array] or ([numpy.array, numpy.array], numpy.array)
+        """
         for batch_data in cycle(self._batches()):
             yield self._embed_batch(batch_data)
 
