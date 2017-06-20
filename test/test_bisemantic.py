@@ -252,6 +252,20 @@ class TestCommandLine(TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.info.txt")))
         main_function_output(["predict", self.model_directory, "test/resources/test.csv"])
 
+    def test_train_predict_no_validation(self):
+        main_function_output(["train", "test/resources/train.csv",
+                              "--units", "64",
+                              "--dropout", "0.5",
+                              "--epochs", "2",
+                              "--model", self.model_directory])
+        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
+        training_history_filename = os.path.join(self.model_directory, "training-history.json")
+        self.assertTrue(os.path.isfile(training_history_filename))
+        training_history = TrainingHistory.load(training_history_filename)
+        self.assertEqual("Training history, 1 runs", str(training_history))
+        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.info.txt")))
+        main_function_output(["predict", self.model_directory, "test/resources/test.csv"])
+
     def test_train_predict_crossvalidation_fraction_with_continue(self):
         # Train a model.
         main_function_output(["train", "test/resources/train.csv",

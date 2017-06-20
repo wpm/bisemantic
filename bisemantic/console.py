@@ -145,9 +145,15 @@ def train_or_continue(args, training_operation):
         update_model_directory(args.model_directory_name, training_time, len(training), history)
     print("Training time %s" % training_time)
     history = history.history
-    print("Training: accuracy=%0.4f, loss=%0.4f" % (history["acc"][-1], history["loss"][-1]))
+    if "val_loss" in history:
+        metric = "val_loss"
+    else:
+        metric = "loss"
+    i = history[metric].index(min(history[metric]))
+    print("Best epoch: %d" % (i + 1))
+    print("Training: accuracy=%0.4f, loss=%0.4f" % (history["acc"][i], history["loss"][i]))
     if validation is not None:
-        print("Validation: accuracy=%0.4f, loss=%0.4f" % (history["val_acc"][-1], history["val_loss"][-1]))
+        print("Validation: accuracy=%0.4f, loss=%0.4f" % (history["val_acc"][i], history["val_loss"][i]))
 
 
 def predict(args):
