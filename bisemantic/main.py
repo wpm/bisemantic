@@ -46,7 +46,7 @@ class TextualEquivalenceModel(object):
         if model_directory is not None:
             os.makedirs(model_directory)
             with open(os.path.join(model_directory, "model.info.txt"), "w") as f:
-                f.write(str(model))
+                f.write("%s\n" % model)
         return cls._train(epochs, model, model_directory, training, validation_data)
 
     @classmethod
