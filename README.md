@@ -17,10 +17,10 @@ The sample is a pair of texts and the label is a boolean indication of whether t
 The exact nature of the relationship depends on the data set, for example "entails" or "is a duplicate question".
 
 [GloVe](https://nlp.stanford.edu/projects/glove/) vectors are used to embed the texts into matrices of size `(tokens, embedding size)`, clipping or padding the first dimension as needed.
-A shared LSTM model converts these to single vectors, _r<sub>1</sub>_ and _r<sub>2</sub>_ which are then concatenated into the vector [_r<sub>1</sub>, r<sub>2</sub>, r<sub>1</sub> · r<sub>2</sub>_].
+A shared LSTM model converts these to single vectors, _r<sub>1</sub>_ and _r<sub>2</sub>_ which are then concatenated into the vector [_r<sub>1</sub>, r<sub>2</sub>, r<sub>1</sub> · r<sub>2</sub>, (r<sub>1</sub> - r<sub>2</sub>)<sup>2</sup>_].
 A single-layer perceptron is used to map this vector to the label.
 
-The method is similar to that described in Homma et al. ["Detecting Duplicate Questions with Deep Learning"](https://web.stanford.edu/class/cs224n/reports/2748045.pdf).
+The method is similar to that described in Homma et al. ["Detecting Duplicate Questions with Deep Learning"](https://web.stanford.edu/class/cs224n/reports/2748045.pdf) and Addair ["Duplicate Question Pair Detection with Deep Learning"](https://web.stanford.edu/class/cs224n/reports/2759336.pdf).
 
 ## Running
 

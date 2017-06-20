@@ -8,7 +8,7 @@ import os
 
 from keras.callbacks import ModelCheckpoint
 from keras.engine import Model, Input
-from keras.layers import LSTM, multiply, concatenate, Dense, Dropout
+from keras.layers import LSTM, multiply, concatenate, Dense, Dropout, Lambda, add
 from keras.models import load_model
 
 from bisemantic import logger
@@ -122,12 +122,10 @@ class TextualEquivalenceModel(object):
         r2 = lstm(input_2)
         # Concatenate the embeddings with their product and squared difference.
         p = multiply([r1, r2])
-        # Deserialization is broken for squared difference. See Keras issue 6827.
-        # negative_r2 = Lambda(lambda x: -x)(r2)
-        # d = add([r1, negative_r2])
-        # q = multiply([d, d])
-        # v = [r1, r2, p, q]
-        v = [r1, r2, p]
+        negative_r2 = Lambda(lambda x: -x)(r2)
+        d = add([r1, negative_r2])
+        q = multiply([d, d])
+        v = [r1, r2, p, q]
         lstm_output = concatenate(v)
         if dropout is not None:
             lstm_output = Dropout(dropout, name="dropout")(lstm_output)
