@@ -37,6 +37,8 @@ def create_argument_parser():
     column_renames.add_argument("--text-1-name", metavar="NAME", help="column containing the first text pair element")
     column_renames.add_argument("--text-2-name", metavar="NAME", help="column containing the second text pair element")
     column_renames.add_argument("--label-name", metavar="NAME", help="column containing the label")
+    column_renames.add_argument("--index-name", metavar="NAME",
+                                help="column containing a unique index (default use row number)")
 
     embedding_options = argparse.ArgumentParser(add_help=False)
     embedding_options.add_argument("--batch-size", type=int, default=2048,
@@ -49,9 +51,9 @@ def create_argument_parser():
                                   help="maximum number of tokens to embed per sample (default longest in the data)")
 
     training_arguments = argparse.ArgumentParser(add_help=False)
-    training_arguments.add_argument("training", type=data_file, help="training data")
+    training_arguments.add_argument("training", help="training data")
     validation_group = training_arguments.add_mutually_exclusive_group()
-    validation_group.add_argument("--validation-set", type=data_file, help="validation data")
+    validation_group.add_argument("--validation-set", help="validation data")
     validation_group.add_argument("--validation-fraction", type=float,
                                   help="portion of the training data to use as validation")
     training_arguments.add_argument("--epochs", type=int, default=10, help="training epochs (default 10)")
@@ -91,14 +93,14 @@ def create_argument_parser():
                                            parents=[column_renames, embedding_options],
                                            help="predict equivalence")
     predict_parser.add_argument("model_directory_name", metavar="MODEL", help="model directory")
-    predict_parser.add_argument("test", type=data_file, help="test data")
+    predict_parser.add_argument("test", help="test data")
     predict_parser.add_argument("--n", type=int, help="number of test samples to use (default all)")
     predict_parser.set_defaults(func=lambda args: predict(args))
 
     # Cross-validation subcommand
     cv_parser = subparsers.add_parser("cross-validation", description=textwrap.dedent("""\
     Create cross validation data partitions."""), parents=[column_renames], help="cross validation")
-    cv_parser.add_argument("data", type=data_file, help="data to partition")
+    cv_parser.add_argument("data", help="data to partition")
     cv_parser.add_argument("fraction", type=float, help="fraction to use for training")
     cv_parser.add_argument("k", type=int, help="number of splits")
     cv_parser.add_argument("--prefix", type=str, default="data", help="name prefix of partition files (default data)")
@@ -132,11 +134,13 @@ def continue_training(args):
 def train_or_continue(args, training_operation):
     from bisemantic.data import cross_validation_partitions
 
-    training = fix_columns(args.training.head(args.n), args)
+    training = fix_columns(data_file(args.training, index=args.index_name).head(args.n), args)
     if args.validation_fraction is not None:
         training, validation = cross_validation_partitions(training, 1 - args.validation_fraction, 1)[0]
+    elif args.validation_set is not None:
+        validation = fix_columns(data_file(args.validation_set, index=args.index_name), args)
     else:
-        validation = args.validation_set
+        validation = None
 
     start = time.time()
     model, history = training_operation(args, training, validation)
@@ -158,7 +162,7 @@ def train_or_continue(args, training_operation):
 
 def predict(args):
     from bisemantic.main import TextualEquivalenceModel
-    test = fix_columns(args.test.head(args.n), args)
+    test = fix_columns(data_file(args.test, index=args.index_name).head(args.n), args)
     logger.info("Predict labels for %d pairs" % len(test))
     model = TextualEquivalenceModel.load_from_model_directory(args.model_directory_name)
     predictions = model.predict(test, batch_size=args.batch_size)
@@ -167,7 +171,7 @@ def predict(args):
 
 def create_cross_validation_partitions(args):
     from bisemantic.data import cross_validation_partitions
-    data = fix_columns(args.data.head(args.n), args)
+    data = fix_columns(data_file(args.data, index=args.index_name).head(args.n), args)
     for i, (train_partition, validate_partition) in enumerate(cross_validation_partitions(data, args.fraction, args.k)):
         train_name, validate_name = [os.path.join(args.output_directory, "%s.%d.%s.csv" % (args.prefix, i + 1, name))
                                      for name in ["train", "validate"]]
@@ -175,7 +179,7 @@ def create_cross_validation_partitions(args):
         validate_partition.to_csv(validate_name)
 
 
-def data_file(filename):
+def data_file(filename, index=None):
     """
     Load a test or training data file.
 
@@ -183,15 +187,17 @@ def data_file(filename):
 
     :param filename: name of data file
     :type filename: str
+    :param index: optional name of the index column
+    :type index: str or None
     :return: data stored in the data file
     :rtype: pandas.DataFrame
     """
-    data = pd.read_csv(filename)
+    data = pd.read_csv(filename, index_col=index)
     m = len(data)
     data = data.dropna()
     n = len(data)
     if m != n:
-        logger.info("Dropped %d lines with null values from %s" % (m - n, filename))
+        logger.info("Dropped %d samples with null values from %s" % (m - n, filename))
     return data
 
 

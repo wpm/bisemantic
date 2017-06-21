@@ -34,8 +34,16 @@ class TestPreprocess(TestCase):
     def test_load_data_with_null(self):
         actual = data_file("test/resources/data_with_null_values.csv")
         self.assertIsInstance(actual, pd.DataFrame)
+        assert_array_equal(["id", "text1", "text2", "label"], actual.columns)
+        self.assertEqual(3, len(actual))
+
+    def test_load_data_with_null_and_index_column(self):
+        actual = fix_columns(data_file("test/resources/data_with_null_values.csv", index="id"),
+                             Namespace(text_1_name=None, text_2_name=None, label_name=None))
+        self.assertIsInstance(actual, pd.DataFrame)
         assert_array_equal(["text1", "text2", "label"], actual.columns)
         self.assertEqual(3, len(actual))
+        assert_array_equal([1, 3, 5], actual.index)
 
     def test_fix_columns_with_no_rename(self):
         train = fix_columns(self.train, Namespace(text_1_name=None, text_2_name=None, label_name=None))
