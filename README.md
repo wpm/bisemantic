@@ -13,8 +13,9 @@ See spaCy's [models documentation](https://spacy.io/docs/usage/models) for more 
 ## Semantic Equivalence
 
 Semantic equivalence is framed as a supervised learning problem.
-The sample is a pair of texts and the label is a boolean indication of whether they have a particular semantic relationship.
-The exact nature of the relationship depends on the data set, for example "entails" or "is a duplicate question".
+The sample is a pair of texts and the label is an zero-based integer class index.
+The significance of the class varies from data set to data set but is presumably some kind of semantic relationship between the two texts.
+For example `(0 = not duplicate question, 1 = is duplicate question)` or `(0 = contradicts, 1 = entails, 2 = neutral)`.
 
 [GloVe](https://nlp.stanford.edu/projects/glove/) vectors are used to embed the texts into matrices of size `(tokens, embedding size)`, clipping or padding the first dimension as needed.
 A shared LSTM model converts these to single vectors, _r<sub>1</sub>_ and _r<sub>2</sub>_ which are then concatenated into the vector [_r<sub>1</sub>, r<sub>2</sub>, r<sub>1</sub> · r<sub>2</sub>, (r<sub>1</sub> - r<sub>2</sub>)<sup>2</sup>_].

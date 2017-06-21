@@ -42,7 +42,7 @@ class TextualEquivalenceModel(object):
         :rtype: (TextualEquivalenceModel, keras.callbacks.History)
         """
         training = TextPairEmbeddingGenerator(training_data, batch_size=batch_size, maximum_tokens=maximum_tokens)
-        model = cls.create(training.maximum_tokens, embedding_size(), lstm_units, dropout)
+        model = cls.create(training.classes, training.maximum_tokens, embedding_size(), lstm_units, dropout)
         if model_directory is not None:
             os.makedirs(model_directory)
             with open(os.path.join(model_directory, "model.info.txt"), "w") as f:
@@ -93,13 +93,15 @@ class TextualEquivalenceModel(object):
 
     # noinspection PyShadowingNames
     @classmethod
-    def create(cls, maximum_tokens, embedding_size, lstm_units, dropout):
+    def create(cls, classes, maximum_tokens, embedding_size, lstm_units, dropout):
         """
         Create a model that detects semantic equivalence between text pairs.
 
         The text pairs are passed in as two aligned matrices of size
         (batch size, maximum embedding tokens, embedding size). They are created by the embed function.
 
+        :param classes: the number of distinct classes to categorize
+        :type classes: int
         :param maximum_tokens: maximum number of embedded tokens
         :type maximum_tokens: int
         :param embedding_size: size of the embedding vector
@@ -133,9 +135,9 @@ class TextualEquivalenceModel(object):
         # Detection with Deep Learning".
         m = sum(t.shape[1].value for t in v)
         perceptron = Dense(math.floor(math.sqrt(m)), activation="relu")(lstm_output)
-        logistic_regression = Dense(1, activation="sigmoid")(perceptron)
+        logistic_regression = Dense(classes, activation="softmax", name="softmax")(perceptron)
         model = Model([input_1, input_2], logistic_regression, "Textual equivalence")
-        model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
+        model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
         return cls(model)
 
     def __init__(self, model):
@@ -160,19 +162,17 @@ class TextualEquivalenceModel(object):
             dropout = dropout.rate
         return dropout
 
+    @property
+    def classes(self):
+        return self.model.get_layer("softmax").units
+
     def __repr__(self):
         if self.dropout is None:
             d = "No dropout"
         else:
             d = "dropout = %0.2f" % self.dropout
-        return "%s(LSTM units = %d, maximum tokens = %d, embedding size = %d, %s)" % \
-               (self.__class__.__name__, self.lstm_units, self.maximum_tokens, self.embedding_size, d)
-
-    def parameters(self):
-        return {"maximum_tokens": self.maximum_tokens,
-                "embedding_size": self.embedding_size,
-                "lstm_units": self.lstm_units,
-                "dropout": self.dropout}
+        return "%s(classes = %d, LSTM units = %d, maximum tokens = %d, embedding size = %d, %s)" % \
+               (self.__class__.__name__, self.classes, self.lstm_units, self.maximum_tokens, self.embedding_size, d)
 
     def fit(self, training, epochs=1, validation_data=None, model_directory=None):
         logger.info("Train model: %d samples, %d epochs, batch size %d" % (len(training), epochs, training.batch_size))
@@ -200,7 +200,7 @@ class TextualEquivalenceModel(object):
     def predict(self, test_data, batch_size=2048):
         g = TextPairEmbeddingGenerator(test_data, maximum_tokens=self.maximum_tokens, batch_size=batch_size)
         probabilities = self.model.predict_generator(generator=g(), steps=g.batches_per_epoch)
-        return probabilities.reshape((-1,))
+        return probabilities.reshape((len(test_data), self.classes))
 
     def save(self, filename):
         self.model.save(filename)

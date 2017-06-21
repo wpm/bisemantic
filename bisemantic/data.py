@@ -32,8 +32,21 @@ class TextPairEmbeddingGenerator(object):
         return len(self.data)
 
     def __repr__(self):
-        return "%s: %d samples, batch size %d, maximum tokens %s" % (
-            self.__class__.__name__, len(self), self.batch_size, self.maximum_tokens)
+        s = "%s: %d samples" % (self.__class__.__name__, len(self))
+        if self._labeled:
+            s += ", %d classes" % self.classes
+        return s + ", batch size %d, maximum tokens %s" % (self.batch_size, self.maximum_tokens)
+
+    @property
+    def classes(self):
+        """
+        :return: the number of unique label classes of None is the data is unlabeled
+        :rtype: int or None
+        """
+        if self._labeled:
+            return max(self.data[label]) + 1
+        else:
+            return None
 
     def __call__(self):
         """

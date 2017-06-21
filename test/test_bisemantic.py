@@ -73,7 +73,7 @@ class TestTextPairEmbeddingGenerator(TestCase):
     def test_embed_labeled(self):
         g = TextPairEmbeddingGenerator(self.labeled, batch_size=32)
         self.assertEqual(100, len(g))
-        self.assertEqual("TextPairEmbeddingGenerator: 100 samples, batch size 32, maximum tokens 40", str(g))
+        self.assertEqual("TextPairEmbeddingGenerator: 100 samples, 2 classes, batch size 32, maximum tokens 40", str(g))
         self.assertEqual(4, g.batches_per_epoch)
         two_epochs = list(islice(g(), 2 * g.batches_per_epoch))
         self._validate_labeled_batches(two_epochs, g.batches_per_epoch, 40, [32, 32, 32, 4] * 2)
@@ -81,7 +81,7 @@ class TestTextPairEmbeddingGenerator(TestCase):
     def test_embed_labeled_specified_maximum_tokens(self):
         g = TextPairEmbeddingGenerator(self.labeled, batch_size=32, maximum_tokens=10)
         self.assertEqual(100, len(g))
-        self.assertEqual("TextPairEmbeddingGenerator: 100 samples, batch size 32, maximum tokens 10", str(g))
+        self.assertEqual("TextPairEmbeddingGenerator: 100 samples, 2 classes, batch size 32, maximum tokens 10", str(g))
         self.assertEqual(4, g.batches_per_epoch)
         two_epochs = list(islice(g(), 2 * g.batches_per_epoch))
         self._validate_labeled_batches(two_epochs, g.batches_per_epoch, 10, [32, 32, 32, 4] * 2)
@@ -142,22 +142,21 @@ class TestModel(TestCase):
         self.model_directory = os.path.join(self.temporary_directory, "model")
 
     def test_properties(self):
-        model = TextualEquivalenceModel.create(40, 300, 128, 0.5)
+        model = TextualEquivalenceModel.create(2, 40, 300, 128, 0.5)
         self.assertEqual(40, model.maximum_tokens)
         self.assertEqual(300, model.embedding_size)
         self.assertEqual(128, model.lstm_units)
         self.assertEqual(0.5, model.dropout)
-        self.assertEqual({"maximum_tokens": 40, "embedding_size": 300, "lstm_units": 128, "dropout": 0.5},
-                         model.parameters())
+        self.assertEqual(2, model.classes)
 
     def test_stringification(self):
-        model = TextualEquivalenceModel.create(40, 300, 128, 0.5)
+        model = TextualEquivalenceModel.create(2, 40, 300, 128, 0.5)
         self.assertEqual(
-            "TextualEquivalenceModel(LSTM units = 128, maximum tokens = 40, embedding size = 300, dropout = 0.50)",
+            "TextualEquivalenceModel(classes = 2, LSTM units = 128, maximum tokens = 40, embedding size = 300, dropout = 0.50)",
             str(model))
-        model = TextualEquivalenceModel.create(40, 300, 128, None)
+        model = TextualEquivalenceModel.create(2, 40, 300, 128, None)
         self.assertEqual(
-            "TextualEquivalenceModel(LSTM units = 128, maximum tokens = 40, embedding size = 300, No dropout)",
+            "TextualEquivalenceModel(classes = 2, LSTM units = 128, maximum tokens = 40, embedding size = 300, No dropout)",
             str(model))
 
     # noinspection PyUnresolvedReferences
@@ -167,14 +166,14 @@ class TestModel(TestCase):
                                                        validation_data=self.validate,
                                                        model_directory=self.model_directory)
         self.assertEqual(
-            "TextualEquivalenceModel(LSTM units = 128, maximum tokens = 30, embedding size = 300, dropout = 0.50)",
+            "TextualEquivalenceModel(classes = 2, LSTM units = 128, maximum tokens = 30, embedding size = 300, dropout = 0.50)",
             str(model))
         self.assertIsInstance(model, TextualEquivalenceModel)
         self.assertIsInstance(history, History)
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.info.txt")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
         predictions = model.predict(self.test)
-        self.assertEqual((len(self.test),), predictions.shape)
+        self.assertEqual((len(self.test), 2), predictions.shape)
         self.assertTrue((predictions >= 0).all())
         self.assertTrue((predictions <= 1).all())
 
@@ -200,7 +199,7 @@ class TestSerialization(TestCase):
         _, self.filename = tempfile.mkstemp('.h5')
 
     def test_serialization(self):
-        model = TextualEquivalenceModel.create(40, 300, 128, 0.5)
+        model = TextualEquivalenceModel.create(2, 40, 300, 128, 0.5)
         model.save(self.filename)
         deserialized_model = TextualEquivalenceModel.load(self.filename)
         self.assertIsInstance(deserialized_model, TextualEquivalenceModel)
