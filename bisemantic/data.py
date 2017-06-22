@@ -26,6 +26,7 @@ class TextPairEmbeddingGenerator(object):
             m2 = max(len(document) for document in parse_texts(self.data[text_2]))
             maximum_tokens = max(m1, m2)
         self.maximum_tokens = maximum_tokens
+        logger.info(self)
 
     def __len__(self):
         """
@@ -130,8 +131,8 @@ def data_file(filename, n=None, index=None, text_1_name=None, text_2_name=None, 
     """
     Load a test or training data file.
 
-    A data file is a CSV file. Any rows with null values are dropped. The file may optionally be clipped to a specified
-    length.
+    A data file is a CSV file. Any rows with null values in the columns of interest are dropped. The file may
+    optionally be clipped to a specified length.
 
     Rename columns in an input data frame to the ones bisemantic expects. Drop unused columns. If an argument is not
     None the corresponding column must already be in the raw data.
@@ -155,14 +156,17 @@ def data_file(filename, n=None, index=None, text_1_name=None, text_2_name=None, 
     """
     data = load_data_file(filename, index, comma_delimited).head(n)
     data = fix_columns(data, text_1_name, text_2_name, label_name)
+    m = len(data)
+    data = data.dropna()
+    n = len(data)
+    if m != n:
+        logger.info("Dropped %d samples with null values from %s" % (m - n, filename))
     return data
 
 
 def load_data_file(filename, index=None, comma_delimited=True):
     """
-    Load a test or training data file.
-
-    A data file is a CSV file. Any rows with null values are dropped.
+    Load a CSV data file.
 
     :param filename: name of data file
     :type filename: str
@@ -178,11 +182,6 @@ def load_data_file(filename, index=None, comma_delimited=True):
     else:
         # Have the Python parser figure out what the delimiter is.
         data = pd.read_csv(filename, index_col=index, sep=None, engine="python")
-    m = len(data)
-    data = data.dropna()
-    n = len(data)
-    if m != n:
-        logger.info("Dropped %d samples with null values from %s" % (m - n, filename))
     return data
 
 
