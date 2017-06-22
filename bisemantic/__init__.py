@@ -1,5 +1,5 @@
 """
-Machine learning model to detect equivalence between pairs of natural language text.
+Machine learning model to detect relationships between pairs of natural language text.
 """
 
 import logging

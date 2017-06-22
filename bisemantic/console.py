@@ -31,7 +31,7 @@ def create_argument_parser():
     parser.add_argument("--log", default="WARNING", help="logging level")
     parser.set_defaults(func=lambda _: parser.print_usage())
 
-    subparsers = parser.add_subparsers(title="Text Pair Equivalence")
+    subparsers = parser.add_subparsers(title="Text Pair Classifier")
 
     # Shared arguments.
     data_arguments = argparse.ArgumentParser(add_help=False)
@@ -64,7 +64,7 @@ def create_argument_parser():
 
     # Train subcommand
     train_parser = subparsers.add_parser("train", description=textwrap.dedent("""\
-    Train a model to predict textual equivalence.
+    Train a model to classify pairs of text.
     
     Training data is in a CSV document with column labels text1, text2, and label.
     Command line options may be used to specify different column labels.
