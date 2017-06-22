@@ -268,7 +268,9 @@ class TrainingHistory(object):
     def latest_run_summary(self):
         lines = []
         if self.runs:
-            history = self.runs[-1]["history"]
+            last_run = self.runs[-1]
+            history = last_run["history"]
+            lines.append("Training time %s" % last_run["training-time"])
             if "val_loss" in history:
                 metric = "val_loss"
             else:
