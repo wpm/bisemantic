@@ -158,11 +158,13 @@ class TestModel(TestCase):
     def test_stringification(self):
         model = TextualEquivalenceModel.create(2, 40, 300, 128, 0.5)
         self.assertEqual(
-            "TextualEquivalenceModel(classes = 2, LSTM units = 128, maximum tokens = 40, embedding size = 300, dropout = 0.50)",
+            "TextualEquivalenceModel(classes = 2, LSTM units = 128, maximum tokens = 40, embedding size = 300, "
+            "dropout = 0.50)",
             str(model))
         model = TextualEquivalenceModel.create(2, 40, 300, 128, None)
         self.assertEqual(
-            "TextualEquivalenceModel(classes = 2, LSTM units = 128, maximum tokens = 40, embedding size = 300, No dropout)",
+            "TextualEquivalenceModel(classes = 2, LSTM units = 128, maximum tokens = 40, embedding size = 300, "
+            "No dropout)",
             str(model))
 
     # noinspection PyUnresolvedReferences
@@ -172,7 +174,8 @@ class TestModel(TestCase):
                                                        validation_data=self.validate,
                                                        model_directory=self.model_directory)
         self.assertEqual(
-            "TextualEquivalenceModel(classes = 2, LSTM units = 128, maximum tokens = 30, embedding size = 300, dropout = 0.50)",
+            "TextualEquivalenceModel(classes = 2, LSTM units = 128, maximum tokens = 30, embedding size = 300, "
+            "dropout = 0.50)",
             str(model))
         self.assertIsInstance(model, TextualEquivalenceModel)
         self.assertIsInstance(history, History)
