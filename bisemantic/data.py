@@ -5,6 +5,7 @@ import math
 from itertools import cycle
 
 import numpy as np
+import pandas as pd
 import spacy
 from pandas import DataFrame
 from toolz import partition_all
@@ -119,6 +120,86 @@ def cross_validation_partitions(data, fraction, k):
         validate = data[n:]
         partitions.append((train, validate))
     return partitions
+
+
+def data_file(filename, n=None, index=None, text_1_name=None, text_2_name=None, label_name=None):
+    """
+    Load a test or training data file.
+
+    A data file is a CSV file. Any rows with null values are dropped. The file may optionally be clipped to a specified
+    length.
+
+    Rename columns in an input data frame to the ones bisemantic expects. Drop unused columns. If an argument is not
+    None the corresponding column must already be in the raw data.
+
+    :param filename: name of data file
+    :type filename: str
+    :param n: number of samples to limit to or None to use the enitre file
+    :type n: int or None
+    :param index: optional name of the index column
+    :type index: str or None
+    :param text_1_name: name of column in data that should be mapped to text1
+    :type text_1_name: str or None
+    :param text_2_name: name of column in data that should be mapped to text2
+    :type text_2_name: str or None
+    :param label_name: name of column in data that should be mapped to label
+    :type label_name: str or None
+    :return: data frame of the desired size containing just the needed columns
+    :rtype: pandas.DataFrame
+    """
+    data = load_data_file(filename, index).head(n)
+    data = fix_columns(data, text_1_name, text_2_name, label_name)
+    return data
+
+
+def load_data_file(filename, index=None):
+    """
+    Load a test or training data file.
+
+    A data file is a CSV file. Any rows with null values are dropped.
+
+    :param filename: name of data file
+    :type filename: str
+    :param index: optional name of the index column
+    :type index: str or None
+    :return: data stored in the data file
+    :rtype: pandas.DataFrame
+    """
+    data = pd.read_csv(filename, index_col=index)
+    m = len(data)
+    data = data.dropna()
+    n = len(data)
+    if m != n:
+        logger.info("Dropped %d samples with null values from %s" % (m - n, filename))
+    return data
+
+
+def fix_columns(data, text_1_name=None, text_2_name=None, label_name=None):
+    """
+    Rename columns in an input data frame to the ones bisemantic expects. Drop unused columns. If an argument is not
+    None the corresponding column must already be in the raw data.
+
+    :param data: raw data
+    :type data: pandas.DataFrame
+    :param text_1_name: name of column in data that should be mapped to text1
+    :type text_1_name: str or None
+    :param text_2_name: name of column in data that should be mapped to text2
+    :type text_2_name: str or None
+    :param label_name: name of column in data that should be mapped to label
+    :type label_name: str or None
+    :return: data frame containing just the needed columns
+    :rtype: pandas.DataFrame
+    """
+    for name in [text_1_name, text_2_name, label_name]:
+        if name is not None:
+            if name not in data.columns:
+                raise ValueError("Missing column %s" % name)
+    data = data.rename(columns={text_1_name: text_1, text_2_name: text_2, label_name: label})
+    if label in data.columns:
+        columns = [text_1, text_2, label]
+    else:
+        columns = [text_1, text_2]
+    return data[columns]
 
 
 def parse_texts(texts):

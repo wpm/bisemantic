@@ -12,7 +12,8 @@ from datetime import timedelta, datetime
 import pandas as pd
 
 import bisemantic
-from bisemantic import text_1, text_2, label, configure_logger, logger
+from bisemantic import configure_logger, logger
+from bisemantic.data import data_file
 
 
 def main():
@@ -134,11 +135,12 @@ def continue_training(args):
 def train_or_continue(args, training_operation):
     from bisemantic.data import cross_validation_partitions
 
-    training = fix_columns(data_file(args.training, index=args.index_name).head(args.n), args)
+    training = data_file(args.training, args.n, args.index_name, args.text_1_name, args.text_2_name, args.label_name)
     if args.validation_fraction is not None:
         training, validation = cross_validation_partitions(training, 1 - args.validation_fraction, 1)[0]
     elif args.validation_set is not None:
-        validation = fix_columns(data_file(args.validation_set, index=args.index_name), args)
+        validation = data_file(args.validation_set, args.n, args.index_name,
+                               args.text_1_name, args.text_2_name, args.label_name)
     else:
         validation = None
 
@@ -162,7 +164,8 @@ def train_or_continue(args, training_operation):
 
 def predict(args):
     from bisemantic.main import TextualEquivalenceModel
-    test = fix_columns(data_file(args.test, index=args.index_name).head(args.n), args)
+
+    test = data_file(args.test, args.n, args.index_name, args.text_1_name, args.text_2_name, args.label_name)
     logger.info("Predict labels for %d pairs" % len(test))
     model = TextualEquivalenceModel.load_from_model_directory(args.model_directory_name)
     predictions = model.predict(test, batch_size=args.batch_size)
@@ -171,59 +174,12 @@ def predict(args):
 
 def create_cross_validation_partitions(args):
     from bisemantic.data import cross_validation_partitions
-    data = fix_columns(data_file(args.data, index=args.index_name).head(args.n), args)
+    data = data_file(args.data, args.n, args.index_name, args.text_1_name, args.text_2_name, args.label_name)
     for i, (train_partition, validate_partition) in enumerate(cross_validation_partitions(data, args.fraction, args.k)):
         train_name, validate_name = [os.path.join(args.output_directory, "%s.%d.%s.csv" % (args.prefix, i + 1, name))
                                      for name in ["train", "validate"]]
         train_partition.to_csv(train_name)
         validate_partition.to_csv(validate_name)
-
-
-def data_file(filename, index=None):
-    """
-    Load a test or training data file.
-
-    A data file is a CSV file. Any rows with null values are dropped.
-
-    :param filename: name of data file
-    :type filename: str
-    :param index: optional name of the index column
-    :type index: str or None
-    :return: data stored in the data file
-    :rtype: pandas.DataFrame
-    """
-    data = pd.read_csv(filename, index_col=index)
-    m = len(data)
-    data = data.dropna()
-    n = len(data)
-    if m != n:
-        logger.info("Dropped %d samples with null values from %s" % (m - n, filename))
-    return data
-
-
-# noinspection PyUnresolvedReferences
-def fix_columns(data, args):
-    """
-    Rename columns in an input data frame to the ones bisemantic expects. Drop unused columns. If an argument is not
-    None the corresponding column must already be in the raw data.
-
-    :param data: raw data
-    :type data: pandas.DataFrame
-    :param args: parsed command line arguments
-    :type args: argparse.Namespace
-    :return: data frame containing just the needed columns
-    :rtype: pandas.DataFrame
-    """
-    for name in [args.text_1_name, args.text_2_name, args.label_name]:
-        if name is not None:
-            if name not in data.columns:
-                raise ValueError("Missing column %s" % name)
-    data = data.rename(columns={args.text_1_name: text_1, args.text_2_name: text_2, args.label_name: label})
-    if label in data.columns:
-        columns = [text_1, text_2, label]
-    else:
-        columns = [text_1, text_2]
-    return data[columns]
 
 
 def update_model_directory(directory_name, training_time, samples, history):

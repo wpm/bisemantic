@@ -2,7 +2,6 @@ import os
 import shutil
 import sys
 import tempfile
-from argparse import Namespace
 from io import StringIO
 from itertools import islice
 from unittest import TestCase
@@ -11,14 +10,15 @@ import pandas as pd
 from keras.callbacks import History
 from numpy.testing import assert_array_equal
 
-from bisemantic.console import data_file, main, fix_columns, TrainingHistory
-from bisemantic.data import cross_validation_partitions, TextPairEmbeddingGenerator
+from bisemantic.console import main, TrainingHistory
+from bisemantic.data import cross_validation_partitions, TextPairEmbeddingGenerator, data_file, load_data_file, \
+    fix_columns
 from bisemantic.main import TextualEquivalenceModel
 
 
 class TestPreprocess(TestCase):
     def setUp(self):
-        self.train = data_file("test/resources/train.csv")
+        self.train = load_data_file("test/resources/train.csv")
 
     def test_load_training_data(self):
         self.assertIsInstance(self.train, pd.DataFrame)
@@ -26,32 +26,30 @@ class TestPreprocess(TestCase):
         self.assertEqual(100, len(self.train))
 
     def test_load_test_data(self):
-        actual = data_file("test/resources/test.csv")
+        actual = load_data_file("test/resources/test.csv")
         self.assertIsInstance(actual, pd.DataFrame)
         assert_array_equal(["text1", "text2"], actual.columns)
         self.assertEqual(9, len(actual))
 
     def test_load_data_with_null(self):
-        actual = data_file("test/resources/data_with_null_values.csv")
+        actual = load_data_file("test/resources/data_with_null_values.csv")
         self.assertIsInstance(actual, pd.DataFrame)
         assert_array_equal(["id", "text1", "text2", "label"], actual.columns)
         self.assertEqual(3, len(actual))
 
     def test_load_data_with_null_and_index_column(self):
-        actual = fix_columns(data_file("test/resources/data_with_null_values.csv", index="id"),
-                             Namespace(text_1_name=None, text_2_name=None, label_name=None))
+        actual = data_file("test/resources/data_with_null_values.csv", index="id")
         self.assertIsInstance(actual, pd.DataFrame)
         assert_array_equal(["text1", "text2", "label"], actual.columns)
         self.assertEqual(3, len(actual))
         assert_array_equal([1, 3, 5], actual.index)
 
     def test_fix_columns_with_no_rename(self):
-        train = fix_columns(self.train, Namespace(text_1_name=None, text_2_name=None, label_name=None))
+        train = fix_columns(self.train, text_1_name=None, text_2_name=None, label_name=None)
         assert_array_equal(["text1", "text2", "label"], train.columns)
 
     def test_fix_columns_with_invalid_column_name(self):
-        self.assertRaises(ValueError, fix_columns, self.train,
-                          Namespace(text_1_name="bogus", text_2_name=None, label_name=None))
+        self.assertRaises(ValueError, fix_columns, self.train, text_1_name="bogus", text_2_name=None, label_name=None)
 
     def test_cross_validate(self):
         k = 3
@@ -67,8 +65,8 @@ class TestPreprocess(TestCase):
 
 class TestTextPairEmbeddingGenerator(TestCase):
     def setUp(self):
-        self.labeled = data_file("test/resources/train.csv")
-        self.unlabeled = data_file("test/resources/test.csv")
+        self.labeled = load_data_file("test/resources/train.csv")
+        self.unlabeled = load_data_file("test/resources/test.csv")
 
     def test_embed_unlabeled(self):
         g = TextPairEmbeddingGenerator(self.unlabeled, batch_size=4)
@@ -141,11 +139,11 @@ class TestTextPairEmbeddingGenerator(TestCase):
 
 class TestModel(TestCase):
     def setUp(self):
-        data = data_file("test/resources/train.csv")
+        data = load_data_file("test/resources/train.csv")
         n = int(0.8 * len(data))
         self.train = data[:n]
         self.validate = data[n:]
-        self.test = data_file("test/resources/test.csv")
+        self.test = load_data_file("test/resources/test.csv")
         self.temporary_directory = tempfile.mkdtemp()
         self.model_directory = os.path.join(self.temporary_directory, "model")
 
