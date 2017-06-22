@@ -204,8 +204,8 @@ def data_file(filename, index=None):
 # noinspection PyUnresolvedReferences
 def fix_columns(data, args):
     """
-    Rename columns in an input data frame to the ones bisemantic expects. Drop unused columns. If an argument is None
-    the corresponding column must already be in the raw data.
+    Rename columns in an input data frame to the ones bisemantic expects. Drop unused columns. If an argument is not
+    None the corresponding column must already be in the raw data.
 
     :param data: raw data
     :type data: pandas.DataFrame
