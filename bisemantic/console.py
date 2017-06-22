@@ -40,6 +40,7 @@ def create_argument_parser():
     data_arguments.add_argument("--label-name", metavar="NAME", help="column containing the label")
     data_arguments.add_argument("--index-name", metavar="NAME",
                                 help="column containing a unique index (default use row number)")
+    data_arguments.add_argument("--invalid-labels", nargs="*", help="omit samples with these label values")
     data_arguments.add_argument("--not-comma-delimited", action="store_true", help="the data is not comma delimited")
 
     embedding_options = argparse.ArgumentParser(add_help=False)
@@ -137,12 +138,13 @@ def train_or_continue(args, training_operation):
     from bisemantic.data import cross_validation_partitions
 
     training = data_file(args.training, args.n, args.index_name, args.text_1_name, args.text_2_name, args.label_name,
-                         not args.not_comma_delimited)
+                         args.invalid_labels, not args.not_comma_delimited)
     if args.validation_fraction is not None:
         training, validation = cross_validation_partitions(training, 1 - args.validation_fraction, 1)[0]
     elif args.validation_set is not None:
         validation = data_file(args.validation_set, args.n, args.index_name,
-                               args.text_1_name, args.text_2_name, args.label_name, not args.not_comma_delimited)
+                               args.text_1_name, args.text_2_name, args.label_name, args.invalid_labels,
+                               not args.not_comma_delimited)
     else:
         validation = None
 
@@ -168,7 +170,7 @@ def predict(args):
     from bisemantic.classifier import TextPairClassifier
 
     test = data_file(args.test, args.n, args.index_name, args.text_1_name, args.text_2_name, args.label_name,
-                     not args.not_comma_delimited)
+                     args.invalid_labels, not args.not_comma_delimited)
     logger.info("Predict labels for %d pairs" % len(test))
     model = TextPairClassifier.load_from_model_directory(args.model_directory_name)
     predictions = model.predict(test, batch_size=args.batch_size)
@@ -178,7 +180,7 @@ def predict(args):
 def create_cross_validation_partitions(args):
     from bisemantic.data import cross_validation_partitions
     data = data_file(args.data, args.n, args.index_name, args.text_1_name, args.text_2_name, args.label_name,
-                     not args.not_comma_delimited)
+                     args.invalid_labels, not args.not_comma_delimited)
     for i, (train_partition, validate_partition) in enumerate(cross_validation_partitions(data, args.fraction, args.k)):
         train_name, validate_name = [os.path.join(args.output_directory, "%s.%d.%s.csv" % (args.prefix, i + 1, name))
                                      for name in ["train", "validate"]]

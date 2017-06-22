@@ -127,12 +127,12 @@ def cross_validation_partitions(data, fraction, k):
 
 
 def data_file(filename, n=None, index=None, text_1_name=None, text_2_name=None, label_name=None,
-              comma_delimited=True):
+              invalid_labels=None, comma_delimited=True):
     """
     Load a test or training data file.
 
-    A data file is a CSV file. Any rows with null values in the columns of interest are dropped. The file may
-    optionally be clipped to a specified length.
+    A data file is a CSV file. Any rows with null values in the columns of interest or with optional invalid label
+    values are dropped. The file may optionally be clipped to a specified length.
 
     Rename columns in an input data frame to the ones bisemantic expects. Drop unused columns. If an argument is not
     None the corresponding column must already be in the raw data.
@@ -149,6 +149,8 @@ def data_file(filename, n=None, index=None, text_1_name=None, text_2_name=None, 
     :type text_2_name: str or None
     :param label_name: name of column in data that should be mapped to label
     :type label_name: str or None
+    :param invalid_labels: disallowed label values
+    :type invalid_labels: list of str
     :param comma_delimited: is the data file comma-delimited?
     :type comma_delimited: bool
     :return: data frame of the desired size containing just the needed columns
@@ -158,6 +160,8 @@ def data_file(filename, n=None, index=None, text_1_name=None, text_2_name=None, 
     data = fix_columns(data, text_1_name, text_2_name, label_name)
     m = len(data)
     data = data.dropna()
+    if invalid_labels:
+        data = data[~data[label].isin(invalid_labels)]
     n = len(data)
     if m != n:
         logger.info("Dropped %d samples with null values from %s" % (m - n, filename))

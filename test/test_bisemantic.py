@@ -32,9 +32,9 @@ class TestPreprocess(TestCase):
         self.assertEqual(9, len(actual))
 
     def test_load_data_with_null(self):
-        actual = load_data_file("test/resources/data_with_null_values.csv")
+        actual = data_file("test/resources/data_with_null_values.csv")
         self.assertIsInstance(actual, pd.DataFrame)
-        assert_array_equal(["id", "text1", "text2", "label"], actual.columns)
+        assert_array_equal(["text1", "text2", "label"], actual.columns)
         self.assertEqual(3, len(actual))
 
     def test_load_data_with_null_and_index_column(self):
@@ -72,9 +72,10 @@ class TestNonCommaDelimited(TestCase):
     def test_load_snli_format(self):
         snli = data_file("test/resources/snli.csv", index="pairID",
                          text_1_name="sentence1", text_2_name="sentence2", label_name="gold_label",
-                         comma_delimited=False)
+                         invalid_labels=["-"], comma_delimited=False)
         assert_array_equal(["text1", "text2", "label"], snli.columns)
-        self.assertEqual(10, len(snli))
+        # There are 9 samples because one is dropped because it has "-" as a gold_label.
+        self.assertEqual(9, len(snli))
         # The pairID index is names of JPEGs.
         self.assertTrue(snli.index.str.match(r"\d{10}\.jpg#\dr\d[nec]").all())
         self.assertEqual({'contradiction', 'neutral', 'entailment'}, set(snli.label.values))
@@ -286,7 +287,8 @@ class TestCommandLine(TestCase):
             "--index-name", "pairID",
             "--text-1-name", "sentence1",
             "--text-2-name", "sentence2",
-            "--label-name", "gold_label"
+            "--label-name", "gold_label",
+            "--invalid-labels", "'-'"
         ]
         main_function_output(["train", "test/resources/snli.csv",
                               "--validation-set", "test/resources/snli.csv",
