@@ -10,10 +10,10 @@ import pandas as pd
 from keras.callbacks import History
 from numpy.testing import assert_array_equal
 
+from bisemantic.classifier import TextPairClassifier
 from bisemantic.console import main, TrainingHistory
 from bisemantic.data import cross_validation_partitions, TextPairEmbeddingGenerator, data_file, load_data_file, \
     fix_columns
-from bisemantic.main import TextualEquivalenceModel
 
 
 class TestPreprocess(TestCase):
@@ -148,7 +148,7 @@ class TestModel(TestCase):
         self.model_directory = os.path.join(self.temporary_directory, "model")
 
     def test_properties(self):
-        model = TextualEquivalenceModel.create(2, 40, 300, 128, 0.5)
+        model = TextPairClassifier.create(2, 40, 300, 128, 0.5)
         self.assertEqual(40, model.maximum_tokens)
         self.assertEqual(300, model.embedding_size)
         self.assertEqual(128, model.lstm_units)
@@ -156,28 +156,27 @@ class TestModel(TestCase):
         self.assertEqual(2, model.classes)
 
     def test_stringification(self):
-        model = TextualEquivalenceModel.create(2, 40, 300, 128, 0.5)
+        model = TextPairClassifier.create(2, 40, 300, 128, 0.5)
         self.assertEqual(
-            "TextualEquivalenceModel(classes = 2, LSTM units = 128, maximum tokens = 40, embedding size = 300, "
+            "TextPairClassifier(classes = 2, LSTM units = 128, maximum tokens = 40, embedding size = 300, "
             "dropout = 0.50)",
             str(model))
-        model = TextualEquivalenceModel.create(2, 40, 300, 128, None)
+        model = TextPairClassifier.create(2, 40, 300, 128, None)
         self.assertEqual(
-            "TextualEquivalenceModel(classes = 2, LSTM units = 128, maximum tokens = 40, embedding size = 300, "
-            "No dropout)",
+            "TextPairClassifier(classes = 2, LSTM units = 128, maximum tokens = 40, embedding size = 300, No dropout)",
             str(model))
 
     # noinspection PyUnresolvedReferences
     def test_train_and_predict(self):
-        model, history = TextualEquivalenceModel.train(self.train, 128, 2,
-                                                       dropout=0.5, maximum_tokens=30,
-                                                       validation_data=self.validate,
-                                                       model_directory=self.model_directory)
+        model, history = TextPairClassifier.train(self.train, 128, 2,
+                                                  dropout=0.5, maximum_tokens=30,
+                                                  validation_data=self.validate,
+                                                  model_directory=self.model_directory)
         self.assertEqual(
-            "TextualEquivalenceModel(classes = 2, LSTM units = 128, maximum tokens = 30, embedding size = 300, "
+            "TextPairClassifier(classes = 2, LSTM units = 128, maximum tokens = 30, embedding size = 300, "
             "dropout = 0.50)",
             str(model))
-        self.assertIsInstance(model, TextualEquivalenceModel)
+        self.assertIsInstance(model, TextPairClassifier)
         self.assertIsInstance(history, History)
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.info.txt")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
@@ -187,16 +186,16 @@ class TestModel(TestCase):
         self.assertTrue((predictions <= 1).all())
 
     def test_train_no_validation(self):
-        model, history = TextualEquivalenceModel.train(self.train.head(20), 128, 1, dropout=0.5,
-                                                       maximum_tokens=30, model_directory=self.model_directory)
+        model, history = TextPairClassifier.train(self.train.head(20), 128, 1, dropout=0.5,
+                                                  maximum_tokens=30, model_directory=self.model_directory)
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.info.txt")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
-        self.assertIsInstance(model, TextualEquivalenceModel)
+        self.assertIsInstance(model, TextPairClassifier)
         self.assertIsInstance(history, History)
 
     def test_train_no_model_directory(self):
-        model, history = TextualEquivalenceModel.train(self.train.head(20), 128, 1, dropout=0.5, maximum_tokens=30)
-        self.assertIsInstance(model, TextualEquivalenceModel)
+        model, history = TextPairClassifier.train(self.train.head(20), 128, 1, dropout=0.5, maximum_tokens=30)
+        self.assertIsInstance(model, TextPairClassifier)
         self.assertIsInstance(history, History)
 
     def tearDown(self):
@@ -208,10 +207,10 @@ class TestSerialization(TestCase):
         _, self.filename = tempfile.mkstemp('.h5')
 
     def test_serialization(self):
-        model = TextualEquivalenceModel.create(2, 40, 300, 128, 0.5)
+        model = TextPairClassifier.create(2, 40, 300, 128, 0.5)
         model.save(self.filename)
-        deserialized_model = TextualEquivalenceModel.load(self.filename)
-        self.assertIsInstance(deserialized_model, TextualEquivalenceModel)
+        deserialized_model = TextPairClassifier.load(self.filename)
+        self.assertIsInstance(deserialized_model, TextPairClassifier)
         self.assertEqual(model.maximum_tokens, deserialized_model.maximum_tokens)
         self.assertEqual(model.embedding_size, deserialized_model.embedding_size)
         self.assertEqual(model.lstm_units, deserialized_model.lstm_units)

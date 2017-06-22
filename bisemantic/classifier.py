@@ -15,7 +15,11 @@ from bisemantic import logger
 from bisemantic.data import TextPairEmbeddingGenerator, embedding_size
 
 
-class TextualEquivalenceModel(object):
+class TextPairClassifier(object):
+    """
+    A model that learns to assign labels to pairs of text.
+    """
+
     @classmethod
     def train(cls, training_data, lstm_units, epochs, dropout=None, maximum_tokens=None,
               batch_size=2048, validation_data=None, model_directory=None):
@@ -39,7 +43,7 @@ class TextualEquivalenceModel(object):
         :param model_directory: directory in which to write model checkpoints
         :type model_directory: str or None
         :return: the trained model and its training history
-        :rtype: (TextualEquivalenceModel, keras.callbacks.History)
+        :rtype: (TextPairClassifier, keras.callbacks.History)
         """
         training = TextPairEmbeddingGenerator(training_data, batch_size=batch_size, maximum_tokens=maximum_tokens)
         model = cls.create(training.classes, training.maximum_tokens, embedding_size(), lstm_units, dropout)
@@ -65,7 +69,7 @@ class TextualEquivalenceModel(object):
         :param validation_data: optional validation data
         :type validation_data: pandas.DataFrame or None
         :return: the trained model and its training history
-        :rtype: (TextualEquivalenceModel, keras.callbacks.History)
+        :rtype: (TextPairClassifier, keras.callbacks.History)
         """
         model = cls.load(cls.model_filename(model_directory))
         training = TextPairEmbeddingGenerator(training_data, maximum_tokens=model.maximum_tokens, batch_size=batch_size)
@@ -83,7 +87,7 @@ class TextualEquivalenceModel(object):
         :param filename: file name
         :type filename: str
         :return: the restored model
-        :rtype: TextualEquivalenceModel
+        :rtype: TextPairClassifier
         """
         return cls(load_model(filename))
 
@@ -111,7 +115,7 @@ class TextualEquivalenceModel(object):
         :param dropout:  dropout rate or None for no dropout
         :type dropout: float or None
         :return: the created model
-        :rtype: TextualEquivalenceModel
+        :rtype: TextPairClassifier
         """
         # Create the model geometry.
         input_shape = (maximum_tokens, embedding_size)

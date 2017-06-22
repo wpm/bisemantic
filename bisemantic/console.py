@@ -114,22 +114,22 @@ def create_argument_parser():
 
 
 def train(args):
-    from bisemantic.main import TextualEquivalenceModel
+    from bisemantic.classifier import TextPairClassifier
     train_or_continue(args,
                       lambda a, training, validation:
-                      TextualEquivalenceModel.train(training, args.units, args.epochs,
-                                                    dropout=args.dropout, maximum_tokens=args.maximum_tokens,
-                                                    batch_size=args.batch_size,
-                                                    validation_data=validation,
-                                                    model_directory=args.model_directory_name))
+                      TextPairClassifier.train(training, args.units, args.epochs,
+                                               dropout=args.dropout, maximum_tokens=args.maximum_tokens,
+                                               batch_size=args.batch_size,
+                                               validation_data=validation,
+                                               model_directory=args.model_directory_name))
 
 
 def continue_training(args):
-    from bisemantic.main import TextualEquivalenceModel
+    from bisemantic.classifier import TextPairClassifier
     train_or_continue(args,
                       lambda a, training, validation:
-                      TextualEquivalenceModel.continue_training(training, args.epochs, args.model_directory_name,
-                                                                batch_size=args.batch_size, validation_data=validation))
+                      TextPairClassifier.continue_training(training, args.epochs, args.model_directory_name,
+                                                           batch_size=args.batch_size, validation_data=validation))
 
 
 def train_or_continue(args, training_operation):
@@ -163,11 +163,11 @@ def train_or_continue(args, training_operation):
 
 
 def predict(args):
-    from bisemantic.main import TextualEquivalenceModel
+    from bisemantic.classifier import TextPairClassifier
 
     test = data_file(args.test, args.n, args.index_name, args.text_1_name, args.text_2_name, args.label_name)
     logger.info("Predict labels for %d pairs" % len(test))
-    model = TextualEquivalenceModel.load_from_model_directory(args.model_directory_name)
+    model = TextPairClassifier.load_from_model_directory(args.model_directory_name)
     predictions = model.predict(test, batch_size=args.batch_size)
     print(pd.DataFrame(predictions).to_csv())
 
