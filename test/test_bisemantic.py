@@ -7,11 +7,10 @@ from itertools import islice
 from unittest import TestCase
 
 import pandas as pd
-from keras.callbacks import History
 from numpy.testing import assert_array_equal
 
-from bisemantic.classifier import TextPairClassifier
-from bisemantic.console import main, TrainingHistory
+from bisemantic.classifier import TextPairClassifier, TrainingHistory
+from bisemantic.console import main
 from bisemantic.data import cross_validation_partitions, TextPairEmbeddingGenerator, data_file, load_data_file, \
     fix_columns
 
@@ -199,7 +198,7 @@ class TestModel(TestCase):
             "dropout = 0.50)",
             str(model))
         self.assertIsInstance(model, TextPairClassifier)
-        self.assertIsInstance(history, History)
+        self.assertIsInstance(history, TrainingHistory)
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.info.txt")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
         predictions = model.predict(self.test)
@@ -213,12 +212,12 @@ class TestModel(TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.info.txt")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
         self.assertIsInstance(model, TextPairClassifier)
-        self.assertIsInstance(history, History)
+        self.assertIsInstance(history, TrainingHistory)
 
     def test_train_no_model_directory(self):
         model, history = TextPairClassifier.train(self.train.head(20), 128, 1, dropout=0.5, maximum_tokens=30)
         self.assertIsInstance(model, TextPairClassifier)
-        self.assertIsInstance(history, History)
+        self.assertIsInstance(history, TrainingHistory)
 
     def tearDown(self):
         shutil.rmtree(self.temporary_directory)

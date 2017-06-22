@@ -1,10 +1,12 @@
 """
-Core model functionality
+The model that classifies text pairs
 """
-
+import json
 import logging
 import math
 import os
+import time
+from datetime import datetime, timedelta
 
 from keras.callbacks import ModelCheckpoint
 from keras.engine import Model, Input
@@ -78,8 +80,26 @@ class TextPairClassifier(object):
     @classmethod
     def _train(cls, epochs, model, model_directory, training, validation_data):
         logger.info(model)
+        start = time.time()
         history = model.fit(training, epochs=epochs, validation_data=validation_data, model_directory=model_directory)
-        return model, history
+        training_time = str(timedelta(seconds=time.time() - start))
+        training_history = cls._training_history(model_directory, training_time, training, history.history)
+        return model, training_history
+
+    @classmethod
+    def _training_history(cls, model_directory, training_time, training, history):
+        if model_directory is not None:
+            training_history_filename = cls.training_history_filename(model_directory)
+            if os.path.isfile(training_history_filename):
+                training_history = TrainingHistory.load(training_history_filename)
+            else:
+                training_history = TrainingHistory()
+            training_history.add_run(training_time, training, history)
+            training_history.save(training_history_filename)
+        else:
+            training_history = TrainingHistory()
+            training_history.add_run(training_time, training, history)
+        return training_history
 
     @classmethod
     def load(cls, filename):
@@ -212,3 +232,50 @@ class TextPairClassifier(object):
     @staticmethod
     def model_filename(model_directory):
         return os.path.join(model_directory, "model.h5")
+
+    @staticmethod
+    def training_history_filename(model_directory):
+        return os.path.join(model_directory, "training-history.json")
+
+
+class TrainingHistory(object):
+    """
+    Record of all the training runs made on a given model. This records the training date, the size of the sample, and
+    the training and validation scores.
+    """
+
+    @classmethod
+    def load(cls, filename):
+        with open(filename) as f:
+            return cls(json.load(f))
+
+    def __init__(self, runs=None):
+        self.runs = runs or []
+
+    def __repr__(self):
+        return "Training history, %d runs" % (len(self.runs))
+
+    def add_run(self, training_time, training, history):
+        self.runs.append({"training-time": training_time,
+                          "training": str(training),
+                          "history": history,
+                          "run-date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+
+    def save(self, filename):
+        with open(filename, "w") as f:
+            json.dump(self.runs, f, sort_keys=True, indent=4, separators=(",", ": "))
+
+    def latest_run_summary(self):
+        lines = []
+        if self.runs:
+            history = self.runs[-1]["history"]
+            if "val_loss" in history:
+                metric = "val_loss"
+            else:
+                metric = "loss"
+            i = history[metric].index(min(history[metric]))
+            lines.append("Best epoch: %d" % (i + 1))
+            lines.append("Training: accuracy=%0.4f, loss=%0.4f" % (history["acc"][i], history["loss"][i]))
+            if "val_loss" in history:
+                lines.append("Validation: accuracy=%0.4f, loss=%0.4f" % (history["val_acc"][i], history["val_loss"][i]))
+        return "\n".join(lines)

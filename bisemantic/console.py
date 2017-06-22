@@ -3,11 +3,8 @@ Command line interface
 """
 
 import argparse
-import json
 import os
 import textwrap
-import time
-from datetime import timedelta, datetime
 
 import pandas as pd
 
@@ -148,22 +145,8 @@ def train_or_continue(args, training_operation):
     else:
         validation = None
 
-    start = time.time()
-    model, history = training_operation(args, training, validation)
-    training_time = str(timedelta(seconds=time.time() - start))
-    if args.model_directory_name is not None:
-        update_model_directory(args.model_directory_name, training_time, len(training), history)
-    print("Training time %s" % training_time)
-    history = history.history
-    if "val_loss" in history:
-        metric = "val_loss"
-    else:
-        metric = "loss"
-    i = history[metric].index(min(history[metric]))
-    print("Best epoch: %d" % (i + 1))
-    print("Training: accuracy=%0.4f, loss=%0.4f" % (history["acc"][i], history["loss"][i]))
-    if validation is not None:
-        print("Validation: accuracy=%0.4f, loss=%0.4f" % (history["val_acc"][i], history["val_loss"][i]))
+    _, training_history = training_operation(args, training, validation)
+    print(training_history.latest_run_summary())
 
 
 def predict(args):
@@ -186,41 +169,3 @@ def create_cross_validation_partitions(args):
                                      for name in ["train", "validate"]]
         train_partition.to_csv(train_name)
         validate_partition.to_csv(validate_name)
-
-
-def update_model_directory(directory_name, training_time, samples, history):
-    training_history_filename = os.path.join(directory_name, "training-history.json")
-    if os.path.isfile(training_history_filename):
-        training_history = TrainingHistory.load(training_history_filename)
-    else:
-        training_history = TrainingHistory()
-    training_history.add_run(training_time, samples, history)
-    training_history.save(training_history_filename)
-
-
-class TrainingHistory(object):
-    """
-    Record of all the training runs made on a given model. This records the training date, the size of the sample, and
-    the training and validation scores.
-    """
-
-    @classmethod
-    def load(cls, filename):
-        with open(filename) as f:
-            return cls(json.load(f))
-
-    def __init__(self, runs=None):
-        self.runs = runs or []
-
-    def __repr__(self):
-        return "Training history, %d runs" % (len(self.runs))
-
-    def add_run(self, training_time, samples, history):
-        self.runs.append({"training-time": training_time,
-                          "samples": samples,
-                          "history": history.history,
-                          "run-date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
-
-    def save(self, filename):
-        with open(filename, "w") as f:
-            json.dump(self.runs, f, sort_keys=True, indent=4, separators=(",", ": "))
