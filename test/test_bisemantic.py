@@ -63,6 +63,23 @@ class TestPreprocess(TestCase):
             self.assertEqual(20, len(s[1]))
 
 
+class TestNonCommaDelimited(TestCase):
+    # The Standford textual entailment SNLI format uses spaces as delimiters instead of commas.
+    def test_load_data_with_space_delimiter(self):
+        snli = load_data_file("test/resources/snli.csv", index="pairID", comma_delimited=False)
+        self.assertEqual(10, len(snli))
+
+    def test_load_snli_format(self):
+        snli = data_file("test/resources/snli.csv", index="pairID",
+                         text_1_name="sentence1", text_2_name="sentence2", label_name="gold_label",
+                         comma_delimited=False)
+        assert_array_equal(["text1", "text2", "label"], snli.columns)
+        self.assertEqual(10, len(snli))
+        # The pairID index is names of JPEGs.
+        self.assertTrue(snli.index.str.match(r"\d{10}\.jpg#\dr\d[nec]").all())
+        self.assertEqual({'contradiction', 'neutral', 'entailment'}, set(snli.label.values))
+
+
 class TestTextPairEmbeddingGenerator(TestCase):
     def setUp(self):
         self.labeled = load_data_file("test/resources/train.csv")
@@ -72,14 +89,17 @@ class TestTextPairEmbeddingGenerator(TestCase):
         g = TextPairEmbeddingGenerator(self.unlabeled, batch_size=4)
         self.assertEqual(9, len(g))
         self.assertEqual("TextPairEmbeddingGenerator: 9 samples, batch size 4, maximum tokens 20", str(g))
+        self.assertEqual(None, g.classes)
         self.assertEqual(3, g.batches_per_epoch)
         two_epochs = list(islice(g(), 2 * g.batches_per_epoch))
         self._validate_unlabeled_batches(two_epochs, g.batches_per_epoch, 20, [4, 4, 1] * 2)
 
     def test_embed_labeled(self):
         g = TextPairEmbeddingGenerator(self.labeled, batch_size=32)
+        assert_array_equal([0, 1], g.classes)
         self.assertEqual(100, len(g))
-        self.assertEqual("TextPairEmbeddingGenerator: 100 samples, 2 classes, batch size 32, maximum tokens 40", str(g))
+        self.assertEqual("TextPairEmbeddingGenerator: 100 samples, classes {0, 1}, batch size 32, maximum tokens 40",
+                         str(g))
         self.assertEqual(4, g.batches_per_epoch)
         two_epochs = list(islice(g(), 2 * g.batches_per_epoch))
         self._validate_labeled_batches(two_epochs, g.batches_per_epoch, 40, [32, 32, 32, 4] * 2)
@@ -87,7 +107,8 @@ class TestTextPairEmbeddingGenerator(TestCase):
     def test_embed_labeled_specified_maximum_tokens(self):
         g = TextPairEmbeddingGenerator(self.labeled, batch_size=32, maximum_tokens=10)
         self.assertEqual(100, len(g))
-        self.assertEqual("TextPairEmbeddingGenerator: 100 samples, 2 classes, batch size 32, maximum tokens 10", str(g))
+        self.assertEqual("TextPairEmbeddingGenerator: 100 samples, classes {0, 1}, batch size 32, maximum tokens 10",
+                         str(g))
         self.assertEqual(4, g.batches_per_epoch)
         two_epochs = list(islice(g(), 2 * g.batches_per_epoch))
         self._validate_labeled_batches(two_epochs, g.batches_per_epoch, 10, [32, 32, 32, 4] * 2)
@@ -258,6 +279,29 @@ class TestCommandLine(TestCase):
         self.assertEqual("Training history, 1 runs", str(training_history))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.info.txt")))
         main_function_output(["predict", self.model_directory, "test/resources/test.csv"])
+
+    def test_train_predict_snli_format(self):
+        snli_format = [
+            "--not-comma-delimited",
+            "--index-name", "pairID",
+            "--text-1-name", "sentence1",
+            "--text-2-name", "sentence2",
+            "--label-name", "gold_label"
+        ]
+        main_function_output(["train", "test/resources/snli.csv",
+                              "--validation-set", "test/resources/snli.csv",
+                              "--units", "64",
+                              "--dropout", "0.5",
+                              "--epochs", "2",
+                              "--model", self.model_directory
+                              ] + snli_format)
+        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
+        training_history_filename = os.path.join(self.model_directory, "training-history.json")
+        self.assertTrue(os.path.isfile(training_history_filename))
+        training_history = TrainingHistory.load(training_history_filename)
+        self.assertEqual("Training history, 1 runs", str(training_history))
+        self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.info.txt")))
+        main_function_output(["predict", self.model_directory, "test/resources/snli.csv"] + snli_format)
 
     def test_train_predict_no_validation(self):
         main_function_output(["train", "test/resources/train.csv",

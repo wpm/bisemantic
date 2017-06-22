@@ -19,6 +19,8 @@ class TextPairEmbeddingGenerator(object):
         self.batch_size = batch_size
         self.batches_per_epoch = math.ceil(len(self) / self.batch_size)
         self._labeled = label in self.data.columns
+        if self._labeled:
+            self.data.loc[:, label] = self.data.loc[:, label].astype("category")
         if maximum_tokens is None:
             m1 = max(len(document) for document in parse_texts(self.data[text_1]))
             m2 = max(len(document) for document in parse_texts(self.data[text_2]))
@@ -35,17 +37,18 @@ class TextPairEmbeddingGenerator(object):
     def __repr__(self):
         s = "%s: %d samples" % (self.__class__.__name__, len(self))
         if self._labeled:
-            s += ", %d classes" % self.classes
+            # noinspection PyTypeChecker
+            s += ", classes {%s}" % ", ".join(str(c) for c in self.classes)
         return s + ", batch size %d, maximum tokens %s" % (self.batch_size, self.maximum_tokens)
 
     @property
     def classes(self):
         """
-        :return: the number of unique label classes of None is the data is unlabeled
-        :rtype: int or None
+        :return: the classes used to label the data or None is the data is unlabeled
+        :rtype: list or None
         """
         if self._labeled:
-            return max(self.data[label]) + 1
+            return self.data[label].cat.categories
         else:
             return None
 
@@ -69,7 +72,7 @@ class TextPairEmbeddingGenerator(object):
         t1 = partition_all(self.batch_size, self.data[text_1])
         t2 = partition_all(self.batch_size, self.data[text_2])
         if self._labeled:
-            l = partition_all(self.batch_size, self.data[label])
+            l = partition_all(self.batch_size, self.data[label].cat.codes)
             batches = zip(t1, t2, l)
         else:
             batches = zip(t1, t2)
@@ -122,7 +125,8 @@ def cross_validation_partitions(data, fraction, k):
     return partitions
 
 
-def data_file(filename, n=None, index=None, text_1_name=None, text_2_name=None, label_name=None):
+def data_file(filename, n=None, index=None, text_1_name=None, text_2_name=None, label_name=None,
+              comma_delimited=True):
     """
     Load a test or training data file.
 
@@ -134,7 +138,7 @@ def data_file(filename, n=None, index=None, text_1_name=None, text_2_name=None, 
 
     :param filename: name of data file
     :type filename: str
-    :param n: number of samples to limit to or None to use the enitre file
+    :param n: number of samples to limit to or None to use the entire file
     :type n: int or None
     :param index: optional name of the index column
     :type index: str or None
@@ -144,15 +148,17 @@ def data_file(filename, n=None, index=None, text_1_name=None, text_2_name=None, 
     :type text_2_name: str or None
     :param label_name: name of column in data that should be mapped to label
     :type label_name: str or None
+    :param comma_delimited: is the data file comma-delimited?
+    :type comma_delimited: bool
     :return: data frame of the desired size containing just the needed columns
     :rtype: pandas.DataFrame
     """
-    data = load_data_file(filename, index).head(n)
+    data = load_data_file(filename, index, comma_delimited).head(n)
     data = fix_columns(data, text_1_name, text_2_name, label_name)
     return data
 
 
-def load_data_file(filename, index=None):
+def load_data_file(filename, index=None, comma_delimited=True):
     """
     Load a test or training data file.
 
@@ -162,10 +168,16 @@ def load_data_file(filename, index=None):
     :type filename: str
     :param index: optional name of the index column
     :type index: str or None
+    :param comma_delimited: is the data file comma-delimited?
+    :type comma_delimited: bool
     :return: data stored in the data file
     :rtype: pandas.DataFrame
     """
-    data = pd.read_csv(filename, index_col=index)
+    if comma_delimited:
+        data = pd.read_csv(filename, index_col=index)
+    else:
+        # Have the Python parser figure out what the delimiter is.
+        data = pd.read_csv(filename, index_col=index, sep=None, engine="python")
     m = len(data)
     data = data.dropna()
     n = len(data)

@@ -34,12 +34,13 @@ def create_argument_parser():
     subparsers = parser.add_subparsers(title="Text Pair Equivalence")
 
     # Shared arguments.
-    column_renames = argparse.ArgumentParser(add_help=False)
-    column_renames.add_argument("--text-1-name", metavar="NAME", help="column containing the first text pair element")
-    column_renames.add_argument("--text-2-name", metavar="NAME", help="column containing the second text pair element")
-    column_renames.add_argument("--label-name", metavar="NAME", help="column containing the label")
-    column_renames.add_argument("--index-name", metavar="NAME",
+    data_arguments = argparse.ArgumentParser(add_help=False)
+    data_arguments.add_argument("--text-1-name", metavar="NAME", help="column containing the first text pair element")
+    data_arguments.add_argument("--text-2-name", metavar="NAME", help="column containing the second text pair element")
+    data_arguments.add_argument("--label-name", metavar="NAME", help="column containing the label")
+    data_arguments.add_argument("--index-name", metavar="NAME",
                                 help="column containing a unique index (default use row number)")
+    data_arguments.add_argument("--not-comma-delimited", action="store_true", help="the data is not comma delimited")
 
     embedding_options = argparse.ArgumentParser(add_help=False)
     embedding_options.add_argument("--batch-size", type=int, default=2048,
@@ -71,7 +72,7 @@ def create_argument_parser():
     
     You may optionally specify either a separate labeled data file for validation or a portion of the training data
     to use as validation."""),
-                                         parents=[column_renames, model_parameters, training_arguments,
+                                         parents=[data_arguments, model_parameters, training_arguments,
                                                   embedding_options],
                                          help="train model")
     train_parser.add_argument("--model-directory-name", metavar="MODEL", help="output model directory")
@@ -82,7 +83,7 @@ def create_argument_parser():
     Continue training a model.
     
     The updated model information is written to the original model directory."""),
-                                            parents=[column_renames, training_arguments, embedding_options],
+                                            parents=[data_arguments, training_arguments, embedding_options],
                                             help="continue training a model")
     continue_parser.add_argument("model_directory_name", metavar="MODEL",
                                  help="directory containing previously trained model")
@@ -91,7 +92,7 @@ def create_argument_parser():
     # Predict subcommand
     predict_parser = subparsers.add_parser("predict", description=textwrap.dedent("""\
     Use a model to predict the probability of the text pair label."""),
-                                           parents=[column_renames, embedding_options],
+                                           parents=[data_arguments, embedding_options],
                                            help="predict equivalence")
     predict_parser.add_argument("model_directory_name", metavar="MODEL", help="model directory")
     predict_parser.add_argument("test", help="test data")
@@ -100,7 +101,7 @@ def create_argument_parser():
 
     # Cross-validation subcommand
     cv_parser = subparsers.add_parser("cross-validation", description=textwrap.dedent("""\
-    Create cross validation data partitions."""), parents=[column_renames], help="cross validation")
+    Create cross validation data partitions."""), parents=[data_arguments], help="cross validation")
     cv_parser.add_argument("data", help="data to partition")
     cv_parser.add_argument("fraction", type=float, help="fraction to use for training")
     cv_parser.add_argument("k", type=int, help="number of splits")
@@ -135,12 +136,13 @@ def continue_training(args):
 def train_or_continue(args, training_operation):
     from bisemantic.data import cross_validation_partitions
 
-    training = data_file(args.training, args.n, args.index_name, args.text_1_name, args.text_2_name, args.label_name)
+    training = data_file(args.training, args.n, args.index_name, args.text_1_name, args.text_2_name, args.label_name,
+                         not args.not_comma_delimited)
     if args.validation_fraction is not None:
         training, validation = cross_validation_partitions(training, 1 - args.validation_fraction, 1)[0]
     elif args.validation_set is not None:
         validation = data_file(args.validation_set, args.n, args.index_name,
-                               args.text_1_name, args.text_2_name, args.label_name)
+                               args.text_1_name, args.text_2_name, args.label_name, not args.not_comma_delimited)
     else:
         validation = None
 
@@ -165,7 +167,8 @@ def train_or_continue(args, training_operation):
 def predict(args):
     from bisemantic.classifier import TextPairClassifier
 
-    test = data_file(args.test, args.n, args.index_name, args.text_1_name, args.text_2_name, args.label_name)
+    test = data_file(args.test, args.n, args.index_name, args.text_1_name, args.text_2_name, args.label_name,
+                     not args.not_comma_delimited)
     logger.info("Predict labels for %d pairs" % len(test))
     model = TextPairClassifier.load_from_model_directory(args.model_directory_name)
     predictions = model.predict(test, batch_size=args.batch_size)
@@ -174,7 +177,8 @@ def predict(args):
 
 def create_cross_validation_partitions(args):
     from bisemantic.data import cross_validation_partitions
-    data = data_file(args.data, args.n, args.index_name, args.text_1_name, args.text_2_name, args.label_name)
+    data = data_file(args.data, args.n, args.index_name, args.text_1_name, args.text_2_name, args.label_name,
+                     not args.not_comma_delimited)
     for i, (train_partition, validate_partition) in enumerate(cross_validation_partitions(data, args.fraction, args.k)):
         train_name, validate_name = [os.path.join(args.output_directory, "%s.%d.%s.csv" % (args.prefix, i + 1, name))
                                      for name in ["train", "validate"]]

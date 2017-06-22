@@ -46,7 +46,7 @@ class TextPairClassifier(object):
         :rtype: (TextPairClassifier, keras.callbacks.History)
         """
         training = TextPairEmbeddingGenerator(training_data, batch_size=batch_size, maximum_tokens=maximum_tokens)
-        model = cls.create(training.classes, training.maximum_tokens, embedding_size(), lstm_units, dropout)
+        model = cls.create(len(training.classes), training.maximum_tokens, embedding_size(), lstm_units, dropout)
         if model_directory is not None:
             os.makedirs(model_directory)
             with open(os.path.join(model_directory, "model.info.txt"), "w") as f:
