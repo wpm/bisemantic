@@ -38,8 +38,7 @@ class TextPairEmbeddingGenerator(object):
     def __repr__(self):
         s = "%s: %d samples" % (self.__class__.__name__, len(self))
         if self._labeled:
-            # noinspection PyTypeChecker
-            s += ", classes {%s}" % ", ".join(str(c) for c in self.classes)
+            s += ", classes %s" % self.classes
         return s + ", batch size %d, maximum tokens %s" % (self.batch_size, self.maximum_tokens)
 
     @property
@@ -49,7 +48,7 @@ class TextPairEmbeddingGenerator(object):
         :rtype: list or None
         """
         if self._labeled:
-            return self.data[label].cat.categories
+            return list(self.data[label].cat.categories)
         else:
             return None
 

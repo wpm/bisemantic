@@ -262,8 +262,8 @@ class TextPairClassifier(object):
         assert label in labeled_test_data
         g = TextPairEmbeddingGenerator(labeled_test_data, maximum_tokens=self.maximum_tokens, batch_size=batch_size)
         if not self.classes == len(g.classes):
-            raise ValueError("Test data categories %s do not align with the %d labels in the model" % (
-                list(g.classes), self.classes))
+            raise ValueError(
+                "Test data categories %s do not align with the %d labels in the model" % (g.classes, self.classes))
         metrics = self.model.evaluate_generator(generator=g(), steps=g.batches_per_epoch)
         return list(zip(self.model.metrics_names, metrics))
 
