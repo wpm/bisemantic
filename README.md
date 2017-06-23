@@ -1,10 +1,10 @@
-# Text Pair Classification
+# Bisemantic
 
 Bisemantic learns semantic relationships between pairs of text.
 It uses a deep learning model in which a shared LSTM maps the two texts to a common representation format, which
 are then aligned with training labels.
-This package provides a command line interface for training and running models.
-The `bisemantic.classifier.TextPairClassifier` and `bisemantic.data.TextPairEmbeddingGenerator` may serve as bases for
+This package provides a command line interface for training and running models, and the 
+`bisemantic.classifier.TextPairClassifier` and `bisemantic.data.TextPairEmbeddingGenerator` may serve as foundations for
 further development work in this area.
 
 
@@ -69,17 +69,18 @@ Bisemantic creates a model similar to that described in \[Homma et al.\] and \[A
 The following command can be used to train a model on the `train.csv` file in this data set.
 
     bisemantic train train.csv \
-        --text-1-name question1 --text-2-name question2 --label-name is_duplicate \
-        --validation-fraction 0.2 --maximum-tokens 150 --dropout 0.5 --batch-size 1024 --units 256 \
+        --text-1-name question1 --text-2-name question2 --label-name is_duplicate --index-name id \
+        --validation-fraction 0.2 --maximum-tokens 75 --dropout 0.5 --batch-size 1024 --units 256 --bidirectional \
         --model-directory-name quora.model
 
-This achieved an accuracy of 83.49% on the validation split after 10 epochs of training. 
+This achieved an accuracy of 83.71% on the validation split after 9 epochs of training. 
 
 ### Textual Entailment
 
 The [Stanford Natural Language Inference corpus](https://nlp.stanford.edu/projects/snli/) is a corpus for the
 recognizing textual entailment (RTE) task.
-It labels "text" sentences as either entailing, contradicting, or being neutral with respect to a "hypothesis" sentence.
+It labels a "text" sentences as either entailing, contradicting, or being neutral with respect to a "hypothesis"
+sentence.
 
 Bisemantic creates a model similar to that described in \[Bowman et al., 2015\] .
 The following command can be used to train a model on the `train snli_1.0_train.txt` and `snli_1.0_dev.txt` files in
@@ -88,10 +89,10 @@ this data set.
     bisemantic train snli_1.0_train.txt \
    			--text-1-name sentence1 --text-2-name sentence2 --label-name gold_label --index-name pairID \
 			--invalid-labels "-" --not-comma-delimited \
-			--validation-set snli_1.0_dev.txt --dropout 0.5 --batch-size 1024 --units 256 \
-			--epochs 20 --model-directory-name snli.model
+			--validation-set snli_1.0_dev.txt --dropout 0.5 --batch-size 1024 --units 256 --bidirectional \
+			--model-directory-name snli.model
 
-This achieved an accuracy of 79.63% on the development set after 11 epochs of training.
+This achieved an accuracy of 80.16% on the development set and 79.49% on the test set after 9 epochs of training.
 
 
 ## References
