@@ -65,8 +65,8 @@ Bisemantic can be used for tasks like question de-duplication or textual entailm
 The [Quora question pair corpus](https://data.quora.com/First-Quora-Dataset-Release-Question-Pairs) contains  contains
 pairs of questions annotated as either asking the same thing or not.
 
-Bisemantic creates a model similar to that described in \[[Homma et al.]((https://web.stanford.edu/class/cs224n/reports/2748045.pdf))\]
-and \[[Addair]((https://web.stanford.edu/class/cs224n/reports/2759336.pdf))\].  
+Bisemantic creates a model similar to that described in \[[Homma et al.](https://web.stanford.edu/class/cs224n/reports/2748045.pdf)\]
+and \[[Addair](https://web.stanford.edu/class/cs224n/reports/2759336.pdf)\].  
 The following command can be used to train a model on the `train.csv` file in this data set.
 
     bisemantic train train.csv \
@@ -84,7 +84,7 @@ It labels a "text" sentences as either entailing, contradicting, or being neutra
 sentence.
 
 Bisemantic creates a model similar to that described in
-\[[Bowman et al., 2015]((https://nlp.stanford.edu/pubs/snli_paper.pdf))\].
+\[[Bowman et al., 2015](https://nlp.stanford.edu/pubs/snli_paper.pdf)\].
 The following command can be used to train a model on the `train snli_1.0_train.txt` and `snli_1.0_dev.txt` files in
 this data set.
 
