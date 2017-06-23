@@ -241,6 +241,6 @@ text_parser = None
 def _load_text_parser():
     global text_parser
     if text_parser is None:
-        logger.debug("Load text parser")
         text_parser = spacy.load("en", tagger=None, parser=None, entity=None)
+        logger.info("%s: %s" % (text_parser.meta["name"], text_parser.meta["description"]))
     return text_parser
