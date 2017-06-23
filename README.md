@@ -1,11 +1,8 @@
 # Bisemantic
 
 Bisemantic uses deep learning to identify semantic relationships between pairs of text.
-It uses a shared LSTM which maps two texts to representations in a common format which
-are then aligned with training labels.
-This package provides a command line interface for training and running models, and the 
-`bisemantic.classifier.TextPairClassifier` and `bisemantic.data.TextPairEmbeddingGenerator` may serve as foundations for
-further development work in this area.
+It uses a shared LSTM which maps two texts to representations in a common format which are then aligned with training
+labels.
 
 
 ## Installation
@@ -19,7 +16,7 @@ See spaCy's [models documentation](https://spacy.io/docs/usage/models) for more 
 ## Running
 
 Run this tool with the command `bisemantic`.
-Subcommands enable you to train and use models, and partition data into cross-validation sets.
+Subcommands enable you to train and use models and partition data into cross-validation sets.
 Run `bisemantic --help` for details about specific commands.
 
 Input data takes the form of comma-separated-value documents.

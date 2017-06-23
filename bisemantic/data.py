@@ -14,7 +14,28 @@ from bisemantic import logger, text_1, text_2, label
 
 
 class TextPairEmbeddingGenerator(object):
+    """
+    Converts text pair into training data for the TextPairClassifier.
+
+    Given a text pair data frame with the expected column values, it embeds the text and partitions the embeddings into
+    batches that can be feed into the classifier.
+
+    The batches are yielded by a generator so the memory usage is constant proportional to batch size.
+    """
+
     def __init__(self, data, maximum_tokens=None, batch_size=2048):
+        """Create a generator of embedded data batches.
+
+        The data for each batch with be an array of size (batch size, maximum tokens, embeddings). If maximum tokens is
+        not specified to the constructor, the number of tokens in the longest text in all the text pairs is used.
+
+        :param data: data frame with text1, text2, and optional label columns
+        :type data: pandas.DataFrame
+        :param maximum_tokens: maximum number of tokens in an embedding
+        :type maximum_tokens: int or None
+        :param batch_size: number of samples per batch
+        :type batch_size: int
+        """
         self.data = data
         self.batch_size = batch_size
         self.batches_per_epoch = math.ceil(len(self) / self.batch_size)
@@ -128,7 +149,7 @@ def cross_validation_partitions(data, fraction, k):
 def data_file(filename, n=None, index=None, text_1_name=None, text_2_name=None, label_name=None,
               invalid_labels=None, comma_delimited=True):
     """
-    Load a test or training data file.
+    Load a data file and put it in the format expected by the classifier.
 
     A data file is a CSV file. Any rows with null values in the columns of interest or with optional invalid label
     values are dropped. The file may optionally be clipped to a specified length.

@@ -57,7 +57,7 @@ class TextPairClassifier(object):
                            bidirectional)
         if model_directory is not None:
             os.makedirs(model_directory)
-            with open(cls.info_filename(model_directory), "w") as f:
+            with open(cls._info_filename(model_directory), "w") as f:
                 f.write("%s\n" % model)
         return cls._train(epochs, model, model_directory, training, validation_data)
 
@@ -79,7 +79,7 @@ class TextPairClassifier(object):
         :return: the trained model and its training history
         :rtype: (TextPairClassifier, TrainingHistory)
         """
-        model = cls.load(cls.model_filename(model_directory))
+        model = cls.load(cls._model_filename(model_directory))
         training = TextPairEmbeddingGenerator(training_data, maximum_tokens=model.maximum_tokens, batch_size=batch_size)
         return cls._train(epochs, model, model_directory, training, validation_data)
 
@@ -95,7 +95,7 @@ class TextPairClassifier(object):
     @classmethod
     def _training_history(cls, model_directory, training_time, training, history):
         if model_directory is not None:
-            training_history_filename = cls.training_history_filename(model_directory)
+            training_history_filename = cls._training_history_filename(model_directory)
             if os.path.isfile(training_history_filename):
                 training_history = TrainingHistory.load(training_history_filename)
             else:
@@ -119,11 +119,11 @@ class TextPairClassifier(object):
 
     @classmethod
     def load_from_model_directory(cls, model_directory):
-        return cls.load(cls.model_filename(model_directory))
+        return cls.load(cls._model_filename(model_directory))
 
     @classmethod
     def class_names_from_model_directory(cls, model_directory):
-        history = TrainingHistory.load(cls.training_history_filename(model_directory))
+        history = TrainingHistory.load(cls._training_history_filename(model_directory))
         return history.class_names
 
     # noinspection PyShadowingNames
@@ -250,7 +250,7 @@ class TextPairClassifier(object):
             else:
                 monitor = "loss"
             callbacks = [
-                ModelCheckpoint(filepath=self.model_filename(model_directory), monitor=monitor, save_best_only=True,
+                ModelCheckpoint(filepath=self._model_filename(model_directory), monitor=monitor, save_best_only=True,
                                 verbose=verbose)]
         else:
             callbacks = None
@@ -274,15 +274,15 @@ class TextPairClassifier(object):
         return list(zip(self.model.metrics_names, metrics))
 
     @staticmethod
-    def info_filename(model_directory):
+    def _info_filename(model_directory):
         return os.path.join(model_directory, "model.info.txt")
 
     @staticmethod
-    def model_filename(model_directory):
+    def _model_filename(model_directory):
         return os.path.join(model_directory, "model.h5")
 
     @staticmethod
-    def training_history_filename(model_directory):
+    def _training_history_filename(model_directory):
         return os.path.join(model_directory, "training-history.json")
 
 
