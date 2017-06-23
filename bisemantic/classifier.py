@@ -5,8 +5,10 @@ import json
 import logging
 import math
 import os
+import sys
 import time
 from datetime import datetime, timedelta
+from io import StringIO
 
 import pandas as pd
 from keras.callbacks import ModelCheckpoint
@@ -83,7 +85,7 @@ class TextPairClassifier(object):
 
     @classmethod
     def _train(cls, epochs, model, model_directory, training, validation_data):
-        logger.info(model)
+        logger.info(repr(model))
         start = time.time()
         history = model.fit(training, epochs=epochs, validation_data=validation_data, model_directory=model_directory)
         training_time = str(timedelta(seconds=time.time() - start))
@@ -216,6 +218,16 @@ class TextPairClassifier(object):
             s += "bidirectional, "
         return s + "classes = %d, LSTM units = %d, maximum tokens = %d, embedding size = %d, %s)" % \
                    (self.classes, self.lstm_units, self.maximum_tokens, self.embedding_size, d)
+
+    def __str__(self):
+        return "%s\n\n%s" % (repr(self), self._model_topology())
+
+    def _model_topology(self):
+        # Keras' model summary prints to standard out.
+        sys.stdout = s = StringIO()
+        self.model.summary()
+        sys.stdout = sys.__stdout__
+        return s.getvalue()
 
     def fit(self, training, epochs=1, validation_data=None, model_directory=None):
         logger.info("Train model: %d samples, %d epochs, batch size %d" % (len(training), epochs, training.batch_size))

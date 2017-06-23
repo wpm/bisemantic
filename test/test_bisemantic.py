@@ -185,16 +185,16 @@ class TestModel(TestCase):
         self.assertEqual(
             "TextPairClassifier(classes = 2, LSTM units = 128, maximum tokens = 40, embedding size = 300, "
             "dropout = 0.50)",
-            str(model))
+            repr(model))
         model = TextPairClassifier.create(2, 40, 300, 128, None, False)
         self.assertEqual(
             "TextPairClassifier(classes = 2, LSTM units = 128, maximum tokens = 40, embedding size = 300, No dropout)",
-            str(model))
+            repr(model))
         model = TextPairClassifier.create(2, 40, 300, 128, 0.5, True)
         self.assertEqual(
             "TextPairClassifier(bidirectional, classes = 2, LSTM units = 128, maximum tokens = 40, embedding size = "
             "300, dropout = 0.50)",
-            str(model))
+            repr(model))
 
     # noinspection PyUnresolvedReferences
     def test_train_predict_score(self):
@@ -206,7 +206,7 @@ class TestModel(TestCase):
         self.assertEqual(
             "TextPairClassifier(classes = 2, LSTM units = 128, maximum tokens = 30, embedding size = 300, "
             "dropout = 0.50)",
-            str(model))
+            repr(model))
         self.assertIsInstance(model, TextPairClassifier)
         self.assertIsInstance(history, TrainingHistory)
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.info.txt")))
