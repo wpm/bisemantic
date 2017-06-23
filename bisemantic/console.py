@@ -72,6 +72,7 @@ def create_argument_parser():
                                                   embedding_options],
                                          help="train model")
     train_parser.add_argument("--model-directory-name", metavar="MODEL", help="output model directory")
+    train_parser.add_argument("--bidirectional", action="store_true", help="make LSTM bidirectional")
     train_parser.set_defaults(func=lambda args: train(args))
 
     # Continue subcommand
@@ -125,7 +126,7 @@ def train(args):
     from bisemantic.classifier import TextPairClassifier
     train_or_continue(args,
                       lambda a, training, validation:
-                      TextPairClassifier.train(training, args.units, args.epochs,
+                      TextPairClassifier.train(training, args.bidirectional, args.units, args.epochs,
                                                dropout=args.dropout, maximum_tokens=args.maximum_tokens,
                                                batch_size=args.batch_size,
                                                validation_data=validation,

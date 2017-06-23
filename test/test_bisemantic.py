@@ -170,28 +170,36 @@ class TestModel(TestCase):
         self.model_directory = os.path.join(self.temporary_directory, "model")
 
     def test_properties(self):
-        model = TextPairClassifier.create(2, 40, 300, 128, 0.5)
+        model = TextPairClassifier.create(2, 40, 300, 128, 0.5, False)
         self.assertEqual(40, model.maximum_tokens)
         self.assertEqual(300, model.embedding_size)
         self.assertEqual(128, model.lstm_units)
         self.assertEqual(0.5, model.dropout)
         self.assertEqual(2, model.classes)
+        self.assertEqual(False, model.bidirectional)
+        model = TextPairClassifier.create(2, 40, 300, 128, 0.5, True)
+        self.assertEqual(True, model.bidirectional)
 
     def test_stringification(self):
-        model = TextPairClassifier.create(2, 40, 300, 128, 0.5)
+        model = TextPairClassifier.create(2, 40, 300, 128, 0.5, False)
         self.assertEqual(
             "TextPairClassifier(classes = 2, LSTM units = 128, maximum tokens = 40, embedding size = 300, "
             "dropout = 0.50)",
             str(model))
-        model = TextPairClassifier.create(2, 40, 300, 128, None)
+        model = TextPairClassifier.create(2, 40, 300, 128, None, False)
         self.assertEqual(
             "TextPairClassifier(classes = 2, LSTM units = 128, maximum tokens = 40, embedding size = 300, No dropout)",
+            str(model))
+        model = TextPairClassifier.create(2, 40, 300, 128, 0.5, True)
+        self.assertEqual(
+            "TextPairClassifier(bidirectional, classes = 2, LSTM units = 128, maximum tokens = 40, embedding size = "
+            "300, dropout = 0.50)",
             str(model))
 
     # noinspection PyUnresolvedReferences
     def test_train_predict_score(self):
         # Train
-        model, history = TextPairClassifier.train(self.train, 128, 2,
+        model, history = TextPairClassifier.train(self.train, False, 128, 2,
                                                   dropout=0.5, maximum_tokens=30,
                                                   validation_data=self.validate,
                                                   model_directory=self.model_directory)
@@ -223,7 +231,7 @@ class TestModel(TestCase):
         self.assertLessEqual(scores[1][1], 1)
 
     def test_train_no_validation(self):
-        model, history = TextPairClassifier.train(self.train.head(20), 128, 1, dropout=0.5,
+        model, history = TextPairClassifier.train(self.train.head(20), False, 128, 1, dropout=0.5,
                                                   maximum_tokens=30, model_directory=self.model_directory)
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.info.txt")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
@@ -231,7 +239,7 @@ class TestModel(TestCase):
         self.assertIsInstance(history, TrainingHistory)
 
     def test_train_no_model_directory(self):
-        model, history = TextPairClassifier.train(self.train.head(20), 128, 1, dropout=0.5, maximum_tokens=30)
+        model, history = TextPairClassifier.train(self.train.head(20), False, 128, 1, dropout=0.5, maximum_tokens=30)
         self.assertIsInstance(model, TextPairClassifier)
         self.assertIsInstance(history, TrainingHistory)
 

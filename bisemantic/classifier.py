@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 from keras.callbacks import ModelCheckpoint
 from keras.engine import Model, Input
-from keras.layers import LSTM, multiply, concatenate, Dense, Dropout, Lambda, add
+from keras.layers import LSTM, multiply, concatenate, Dense, Dropout, Lambda, add, Bidirectional
 from keras.models import load_model
 
 from bisemantic import logger, label
@@ -24,13 +24,15 @@ class TextPairClassifier(object):
     """
 
     @classmethod
-    def train(cls, training_data, lstm_units, epochs, dropout=None, maximum_tokens=None,
+    def train(cls, training_data, bidirectional, lstm_units, epochs, dropout=None, maximum_tokens=None,
               batch_size=2048, validation_data=None, model_directory=None):
         """
         Train a model from aligned text pairs in data frames.
 
         :param training_data: text pairs and labels
         :type training_data: pandas.DataFrame
+        :param bidirectional: should the shared LSTM be bidirectional?
+        :type bidirectional: bool
         :param lstm_units: number of hidden units in the LSTM
         :type lstm_units: int
         :param epochs: number of training epochs
@@ -49,7 +51,8 @@ class TextPairClassifier(object):
         :rtype: (TextPairClassifier, keras.callbacks.History)
         """
         training = TextPairEmbeddingGenerator(training_data, batch_size=batch_size, maximum_tokens=maximum_tokens)
-        model = cls.create(len(training.classes), training.maximum_tokens, embedding_size(), lstm_units, dropout)
+        model = cls.create(len(training.classes), training.maximum_tokens, embedding_size(), lstm_units, dropout,
+                           bidirectional)
         if model_directory is not None:
             os.makedirs(model_directory)
             with open(cls.info_filename(model_directory), "w") as f:
@@ -118,7 +121,7 @@ class TextPairClassifier(object):
 
     # noinspection PyShadowingNames
     @classmethod
-    def create(cls, classes, maximum_tokens, embedding_size, lstm_units, dropout):
+    def create(cls, classes, maximum_tokens, embedding_size, lstm_units, dropout, bidirectional):
         """
         Create a model that detects semantic equivalence between text pairs.
 
@@ -135,6 +138,8 @@ class TextPairClassifier(object):
         :type lstm_units: int
         :param dropout:  dropout rate or None for no dropout
         :type dropout: float or None
+        :param bidirectional: should the shared LSTM be bidirectional?
+        :type bidirectional: bool
         :return: the created model
         :rtype: TextPairClassifier
         """
@@ -144,7 +149,10 @@ class TextPairClassifier(object):
         input_1 = Input(input_shape)
         input_2 = Input(input_shape)
         # Apply the same LSTM to each.
-        lstm = LSTM(lstm_units, name="lstm")
+        if bidirectional:
+            lstm = Bidirectional(LSTM(lstm_units), name="lstm")
+        else:
+            lstm = LSTM(lstm_units, name="lstm")
         r1 = lstm(input_1)
         r2 = lstm(input_2)
         # Concatenate the embeddings with their product and squared difference.
@@ -178,7 +186,14 @@ class TextPairClassifier(object):
 
     @property
     def lstm_units(self):
-        return self.model.get_layer("lstm").units
+        lstm = self.model.get_layer("lstm")
+        if isinstance(lstm, Bidirectional):
+            lstm = lstm.layer
+        return lstm.units
+
+    @property
+    def bidirectional(self):
+        return isinstance(self.model.get_layer("lstm"), Bidirectional)
 
     @property
     def dropout(self):
@@ -196,8 +211,11 @@ class TextPairClassifier(object):
             d = "No dropout"
         else:
             d = "dropout = %0.2f" % self.dropout
-        return "%s(classes = %d, LSTM units = %d, maximum tokens = %d, embedding size = %d, %s)" % \
-               (self.__class__.__name__, self.classes, self.lstm_units, self.maximum_tokens, self.embedding_size, d)
+        s = "%s(" % self.__class__.__name__
+        if self.bidirectional:
+            s += "bidirectional, "
+        return s + "classes = %d, LSTM units = %d, maximum tokens = %d, embedding size = %d, %s)" % \
+                   (self.classes, self.lstm_units, self.maximum_tokens, self.embedding_size, d)
 
     def fit(self, training, epochs=1, validation_data=None, model_directory=None):
         logger.info("Train model: %d samples, %d epochs, batch size %d" % (len(training), epochs, training.batch_size))
