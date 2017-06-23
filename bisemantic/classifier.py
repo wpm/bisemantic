@@ -48,7 +48,7 @@ class TextPairClassifier(object):
         :param model_directory: directory in which to write model checkpoints
         :type model_directory: str or None
         :return: the trained model and its training history
-        :rtype: (TextPairClassifier, keras.callbacks.History)
+        :rtype: (TextPairClassifier, TrainingHistory)
         """
         training = TextPairEmbeddingGenerator(training_data, batch_size=batch_size, maximum_tokens=maximum_tokens)
         model = cls.create(len(training.classes), training.maximum_tokens, embedding_size(), lstm_units, dropout,
@@ -75,7 +75,7 @@ class TextPairClassifier(object):
         :param validation_data: optional validation data
         :type validation_data: pandas.DataFrame or None
         :return: the trained model and its training history
-        :rtype: (TextPairClassifier, keras.callbacks.History)
+        :rtype: (TextPairClassifier, TrainingHistory)
         """
         model = cls.load(cls.model_filename(model_directory))
         training = TextPairEmbeddingGenerator(training_data, maximum_tokens=model.maximum_tokens, batch_size=batch_size)
