@@ -1,8 +1,7 @@
 # Bisemantic
 
 Bisemantic identifies semantic relationships between pairs of text.
-It uses a shared LSTM which maps two texts to representations in a common format which are then aligned with training
-labels.
+It uses a shared LSTM to map two texts to a common representation format which is then aligned with training labels.
 
 
 ## Installation
