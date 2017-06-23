@@ -7,7 +7,8 @@ from itertools import islice
 from unittest import TestCase
 
 import pandas as pd
-from numpy.testing import assert_array_equal
+from numpy import ones
+from numpy.testing import assert_array_equal, assert_allclose
 
 from bisemantic.classifier import TextPairClassifier, TrainingHistory
 from bisemantic.console import main
@@ -188,7 +189,8 @@ class TestModel(TestCase):
             str(model))
 
     # noinspection PyUnresolvedReferences
-    def test_train_and_predict(self):
+    def test_train_predict_score(self):
+        # Train
         model, history = TextPairClassifier.train(self.train, 128, 2,
                                                   dropout=0.5, maximum_tokens=30,
                                                   validation_data=self.validate,
@@ -201,10 +203,24 @@ class TestModel(TestCase):
         self.assertIsInstance(history, TrainingHistory)
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.info.txt")))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.h5")))
+        # Predict
         predictions = model.predict(self.test)
-        self.assertEqual((len(self.test), 2), predictions.shape)
-        self.assertTrue((predictions >= 0).all())
-        self.assertTrue((predictions <= 1).all())
+        self.assertIsInstance(predictions, pd.DataFrame)
+        self.assertEqual(len(self.test), len(predictions))
+        assert_array_equal([0, 1], predictions.columns)
+        self.assertTrue((predictions >= 0).all)
+        self.assertTrue((predictions <= 1).all)
+        row_marginals = predictions.sum(axis=1)
+        assert_allclose(row_marginals, ones(len(self.test)), rtol=1e-04)
+        # Score
+        scores = model.score(self.train)
+        self.assertIsInstance(scores, list)
+        self.assertTrue(2, len(scores))
+        self.assertEquals({"loss", "acc"}, set(s[0] for s in scores))
+        self.assertGreaterEqual(scores[0][1], 0)
+        self.assertLessEqual(scores[0][1], 1)
+        self.assertGreaterEqual(scores[1][1], 0)
+        self.assertLessEqual(scores[1][1], 1)
 
     def test_train_no_validation(self):
         model, history = TextPairClassifier.train(self.train.head(20), 128, 1, dropout=0.5,
@@ -249,7 +265,7 @@ class TestCommandLine(TestCase):
         actual = main_function_output([])
         self.assertEqual(
             "usage: bisemantic [-h] [--version] [--log LOG]\n                  " +
-            "{train,continue,predict,cross-validation} ...\n", actual)
+            "{train,continue,predict,score,cross-validation} ...\n", actual)
 
     def test_version(self):
         actual = main_function_output(["--version"])
@@ -265,7 +281,7 @@ class TestCommandLine(TestCase):
                 filename = os.path.join(self.temporary_directory, "_batches.%d.%s.csv" % (i, partition_name))
                 self.assertTrue(os.path.isfile(filename), "%s is not a file" % filename)
 
-    def test_train_predict(self):
+    def test_train_predict_score(self):
         main_function_output(["train", "test/resources/train.csv",
                               "--validation-set", "test/resources/train.csv",
                               "--units", "64",
@@ -279,6 +295,7 @@ class TestCommandLine(TestCase):
         self.assertEqual("Training history, 1 runs", str(training_history))
         self.assertTrue(os.path.isfile(os.path.join(self.model_directory, "model.info.txt")))
         main_function_output(["predict", self.model_directory, "test/resources/test.csv"])
+        main_function_output(["score", self.model_directory, "test/resources/train.csv"])
 
     def test_train_predict_snli_format(self):
         snli_format = [

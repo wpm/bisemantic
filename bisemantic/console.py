@@ -6,8 +6,6 @@ import argparse
 import os
 import textwrap
 
-import pandas as pd
-
 import bisemantic
 from bisemantic import configure_logger, logger
 from bisemantic.data import data_file
@@ -87,15 +85,26 @@ def create_argument_parser():
                                  help="directory containing previously trained model")
     continue_parser.set_defaults(func=lambda args: continue_training(args))
 
+    test_arguments = argparse.ArgumentParser(add_help=False)
+    test_arguments.add_argument("model_directory_name", metavar="MODEL", help="model directory")
+    test_arguments.add_argument("test", help="test data")
+    test_arguments.add_argument("--n", type=int, help="number of test samples to use (default all)")
+
     # Predict subcommand
     predict_parser = subparsers.add_parser("predict", description=textwrap.dedent("""\
     Use a model to predict the probability of the text pair label."""),
-                                           parents=[data_arguments, embedding_options],
-                                           help="predict equivalence")
-    predict_parser.add_argument("model_directory_name", metavar="MODEL", help="model directory")
-    predict_parser.add_argument("test", help="test data")
-    predict_parser.add_argument("--n", type=int, help="number of test samples to use (default all)")
+                                           parents=[data_arguments, embedding_options, test_arguments],
+                                           help="predict labels")
     predict_parser.set_defaults(func=lambda args: predict(args))
+
+    # Score subcommand
+    predict_parser = subparsers.add_parser("score", description=textwrap.dedent("""\
+    Use a model to score a labeled test set.
+    
+    This returns the model's cross entropy loss and accuracy on the test set."""),
+                                           parents=[data_arguments, embedding_options, test_arguments],
+                                           help="score labeled test set")
+    predict_parser.set_defaults(func=lambda args: score(args))
 
     # Cross-validation subcommand
     cv_parser = subparsers.add_parser("cross-validation", description=textwrap.dedent("""\
@@ -157,7 +166,18 @@ def predict(args):
     logger.info("Predict labels for %d pairs" % len(test))
     model = TextPairClassifier.load_from_model_directory(args.model_directory_name)
     predictions = model.predict(test, batch_size=args.batch_size)
-    print(pd.DataFrame(predictions).to_csv())
+    print(predictions.to_csv())
+
+
+def score(args):
+    from bisemantic.classifier import TextPairClassifier
+
+    test = data_file(args.test, args.n, args.index_name, args.text_1_name, args.text_2_name, args.label_name,
+                     args.invalid_labels, not args.not_comma_delimited)
+    logger.info("Score predictions for %d pairs" % len(test))
+    model = TextPairClassifier.load_from_model_directory(args.model_directory_name)
+    scores = model.score(test, batch_size=args.batch_size)
+    print(", ".join("%s=%0.5f" % s for s in scores))
 
 
 def create_cross_validation_partitions(args):

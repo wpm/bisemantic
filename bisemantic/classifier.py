@@ -8,12 +8,13 @@ import os
 import time
 from datetime import datetime, timedelta
 
+import pandas as pd
 from keras.callbacks import ModelCheckpoint
 from keras.engine import Model, Input
 from keras.layers import LSTM, multiply, concatenate, Dense, Dropout, Lambda, add
 from keras.models import load_model
 
-from bisemantic import logger
+from bisemantic import logger, label
 from bisemantic.data import TextPairEmbeddingGenerator, embedding_size
 
 
@@ -224,7 +225,16 @@ class TextPairClassifier(object):
     def predict(self, test_data, batch_size=2048):
         g = TextPairEmbeddingGenerator(test_data, maximum_tokens=self.maximum_tokens, batch_size=batch_size)
         probabilities = self.model.predict_generator(generator=g(), steps=g.batches_per_epoch)
-        return probabilities.reshape((len(test_data), self.classes))
+        return pd.DataFrame(probabilities.reshape((len(test_data), self.classes)))
+
+    def score(self, labeled_test_data, batch_size=2048):
+        assert label in labeled_test_data
+        g = TextPairEmbeddingGenerator(labeled_test_data, maximum_tokens=self.maximum_tokens, batch_size=batch_size)
+        if not self.classes == len(g.classes):
+            raise ValueError("Test data categories %s do not align with the %d labels in the model" % (
+                list(g.classes), self.classes))
+        metrics = self.model.evaluate_generator(generator=g(), steps=g.batches_per_epoch)
+        return list(zip(self.model.metrics_names, metrics))
 
     def save(self, filename):
         self.model.save(filename)
