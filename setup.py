@@ -13,6 +13,6 @@ setup(
     },
     author="W.P. McNeill",
     author_email="billmcn@gmail.com",
-    description="Text pair equivalence detector",
-    install_requires=['pandas', 'spacy', 'keras>=2.0.5', 'numpy', 'toolz']
+    description="Text pair classifier",
+    install_requires=["pandas", "spacy", "keras>=2.0.5", "numpy", "toolz"]
 )

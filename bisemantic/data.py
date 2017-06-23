@@ -20,12 +20,10 @@ label = "label"
 
 class TextPairEmbeddingGenerator(object):
     """
-    Converts text pair into training data for the TextPairClassifier.
+    Given a text pair data frame with the expected column values, this embeds the text and partitions the embeddings
+    into batches that can be fed into the classifier.
 
-    Given a text pair data frame with the expected column values, it embeds the text and partitions the embeddings into
-    batches that can be feed into the classifier.
-
-    The batches are yielded by a generator so the memory usage is constant proportional to batch size.
+    The batches are yielded by a generator so that the memory usage is a constant proportional to batch size.
     """
 
     def __init__(self, data, maximum_tokens=None, batch_size=2048):
@@ -66,17 +64,6 @@ class TextPairEmbeddingGenerator(object):
         if self._labeled:
             s += ", classes %s" % self.classes
         return s + ", batch size %d, maximum tokens %s" % (self.batch_size, self.maximum_tokens)
-
-    @property
-    def classes(self):
-        """
-        :return: the classes used to label the data or None is the data is unlabeled
-        :rtype: list or None
-        """
-        if self._labeled:
-            return list(self.data[label].cat.categories)
-        else:
-            return None
 
     def __call__(self):
         """
@@ -125,6 +112,17 @@ class TextPairEmbeddingGenerator(object):
         m = max(self.maximum_tokens - text_embedding.shape[0], 0)
         uniform_length_document_embedding = np.pad(text_embedding[:self.maximum_tokens], ((m, 0), (0, 0)), "constant")
         return uniform_length_document_embedding
+
+    @property
+    def classes(self):
+        """
+        :return: the classes used to label the data or None is the data is unlabeled
+        :rtype: list or None
+        """
+        if self._labeled:
+            return list(self.data[label].cat.categories)
+        else:
+            return None
 
 
 def cross_validation_partitions(data, fraction, k):

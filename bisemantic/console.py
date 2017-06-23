@@ -130,7 +130,7 @@ def create_argument_parser():
 def train(args):
     from bisemantic.classifier import TextPairClassifier
     train_or_continue(args,
-                      lambda a, training, validation:
+                      lambda training, validation:
                       TextPairClassifier.train(training, args.bidirectional, args.units, args.epochs,
                                                dropout=args.dropout, maximum_tokens=args.maximum_tokens,
                                                batch_size=args.batch_size,
@@ -141,7 +141,7 @@ def train(args):
 def continue_training(args):
     from bisemantic.classifier import TextPairClassifier
     train_or_continue(args,
-                      lambda a, training, validation:
+                      lambda training, validation:
                       TextPairClassifier.continue_training(training, args.epochs, args.model_directory_name,
                                                            batch_size=args.batch_size, validation_data=validation))
 
@@ -160,7 +160,7 @@ def train_or_continue(args, training_operation):
     else:
         validation = None
 
-    _, training_history = training_operation(args, training, validation)
+    _, training_history = training_operation(training, validation)
     print(training_history.latest_run_summary())
 
 
