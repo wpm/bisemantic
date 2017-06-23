@@ -121,6 +121,11 @@ class TextPairClassifier(object):
     def load_from_model_directory(cls, model_directory):
         return cls.load(cls.model_filename(model_directory))
 
+    @classmethod
+    def class_names_from_model_directory(cls, model_directory):
+        history = TrainingHistory.load(cls.training_history_filename(model_directory))
+        return history.class_names
+
     # noinspection PyShadowingNames
     @classmethod
     def create(cls, classes, maximum_tokens, embedding_size, lstm_units, dropout, bidirectional):
@@ -254,10 +259,10 @@ class TextPairClassifier(object):
                                         validation_data=validation_embeddings, validation_steps=validation_steps,
                                         callbacks=callbacks, verbose=verbose)
 
-    def predict(self, test_data, batch_size=2048):
+    def predict(self, test_data, batch_size=2048, class_names=None):
         g = TextPairEmbeddingGenerator(test_data, maximum_tokens=self.maximum_tokens, batch_size=batch_size)
         probabilities = self.model.predict_generator(generator=g(), steps=g.batches_per_epoch)
-        return pd.DataFrame(probabilities.reshape((len(test_data), self.classes)))
+        return pd.DataFrame(probabilities.reshape((len(test_data), self.classes)), columns=class_names)
 
     def score(self, labeled_test_data, batch_size=2048):
         assert label in labeled_test_data
@@ -301,12 +306,20 @@ class TrainingHistory(object):
     def add_run(self, training_time, training, history):
         self.runs.append({"training-time": training_time,
                           "training": str(training),
+                          "class-names": training.classes,
                           "history": history,
                           "run-date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
 
     def save(self, filename):
         with open(filename, "w") as f:
             json.dump(self.runs, f, sort_keys=True, indent=4, separators=(",", ": "))
+
+    @property
+    def class_names(self):
+        if self.runs:
+            return self.runs[0]["class-names"]
+        else:
+            return None
 
     def latest_run_summary(self):
         lines = []

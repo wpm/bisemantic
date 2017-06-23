@@ -166,7 +166,8 @@ def predict(args):
                      args.invalid_labels, not args.not_comma_delimited)
     logger.info("Predict labels for %d pairs" % len(test))
     model = TextPairClassifier.load_from_model_directory(args.model_directory_name)
-    predictions = model.predict(test, batch_size=args.batch_size)
+    class_names = TextPairClassifier.class_names_from_model_directory(args.model_directory_name)
+    predictions = model.predict(test, batch_size=args.batch_size, class_names=class_names)
     print(predictions.to_csv())
 
 
