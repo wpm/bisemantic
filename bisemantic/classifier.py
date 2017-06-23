@@ -220,7 +220,8 @@ class TextPairClassifier(object):
     def fit(self, training, epochs=1, validation_data=None, model_directory=None):
         logger.info("Train model: %d samples, %d epochs, batch size %d" % (len(training), epochs, training.batch_size))
         if validation_data is not None:
-            g = TextPairEmbeddingGenerator(validation_data, maximum_tokens=self.maximum_tokens)
+            g = TextPairEmbeddingGenerator(validation_data, maximum_tokens=self.maximum_tokens,
+                                           batch_size=training.batch_size)
             validation_embeddings, validation_steps = g(), g.batches_per_epoch
         else:
             validation_embeddings = validation_steps = None
