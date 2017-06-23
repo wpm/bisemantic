@@ -50,7 +50,7 @@ between the two texts.
 _(maximum tokens, 300)_, clipping or padding the first dimension as needed.
 If maximum tokens is not specified, the number of tokens in the longest text in the pairs is used.
 An optionally bidirectional shared LSTM converts these embeddings to single vectors,
- _r<sub>1</sub>_ and _r<sub>2</sub>_ which are then concatenated
+ _r<sub>1</sub>_ and _r<sub>2</sub>_, which are then concatenated
 into the vector
 _[r<sub>1</sub>, r<sub>2</sub>, r<sub>1</sub> · r<sub>2</sub>, (r<sub>1</sub> - r<sub>2</sub>)<sup>2</sup>]_.
 A single-layer perceptron maps this vector to a softmax prediction over the labels.
@@ -65,7 +65,8 @@ Bisemantic can be used for tasks like question de-duplication or textual entailm
 The [Quora question pair corpus](https://data.quora.com/First-Quora-Dataset-Release-Question-Pairs) contains  contains
 pairs of questions annotated as either asking the same thing or not.
 
-Bisemantic creates a model similar to that described in \[Homma et al.\] and \[Addair\].  
+Bisemantic creates a model similar to that described in \[[Homma et al.]((https://web.stanford.edu/class/cs224n/reports/2748045.pdf))\]
+and \[[Addair]((https://web.stanford.edu/class/cs224n/reports/2759336.pdf))\].  
 The following command can be used to train a model on the `train.csv` file in this data set.
 
     bisemantic train train.csv \
@@ -82,7 +83,8 @@ recognizing textual entailment (RTE) task.
 It labels a "text" sentences as either entailing, contradicting, or being neutral with respect to a "hypothesis"
 sentence.
 
-Bisemantic creates a model similar to that described in \[Bowman et al., 2015\] .
+Bisemantic creates a model similar to that described in
+\[[Bowman et al., 2015]((https://nlp.stanford.edu/pubs/snli_paper.pdf))\].
 The following command can be used to train a model on the `train snli_1.0_train.txt` and `snli_1.0_dev.txt` files in
 this data set.
 
@@ -101,8 +103,8 @@ This achieved an accuracy of 80.16% on the development set and 79.49% on the tes
 [[pdf](https://web.stanford.edu/class/cs224n/reports/2759336.pdf)]
 
 * Samuel R. Bowman, Gabor Angeli, Christopher Potts, and Christopher D. Manning. 2015. A large annotated corpus for 
-learning natural language inference. In Proceedings of the 2015 Conference on Empirical Methods in Natural Language 
-Processing (EMNLP). [[pdf](https://nlp.stanford.edu/pubs/snli_paper.pdf)]
+learning natural language inference. In _Proceedings of the 2015 Conference on Empirical Methods in Natural Language 
+Processing (EMNLP)_. [[pdf](https://nlp.stanford.edu/pubs/snli_paper.pdf)]
  
 * Yushi Homma, Stuart Sy, Christopher Yeh. Detecting Duplicate Questions with Deep Learning.
 [[pdf](https://web.stanford.edu/class/cs224n/reports/2748045.pdf)]
