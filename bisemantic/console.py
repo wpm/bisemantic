@@ -38,15 +38,15 @@ def create_argument_parser():
     data_arguments.add_argument("--invalid-labels", nargs="*", help="omit samples with these label values")
     data_arguments.add_argument("--not-comma-delimited", action="store_true", help="the data is not comma delimited")
 
-    embedding_options = argparse.ArgumentParser(add_help=False)
-    embedding_options.add_argument("--batch-size", type=int, default=2048,
-                                   help="number samples per batch (default 2048)")
+    embedding_arguments = argparse.ArgumentParser(add_help=False)
+    embedding_arguments.add_argument("--batch-size", type=int, default=2048,
+                                     help="number samples per batch (default 2048)")
 
-    model_parameters = argparse.ArgumentParser(add_help=False)
-    model_parameters.add_argument("--units", type=int, default=128, help="LSTM hidden layer size (default 128)")
-    model_parameters.add_argument("--dropout", type=float, help="Dropout rate (default no dropout)")
-    model_parameters.add_argument("--maximum-tokens", type=int,
-                                  help="maximum number of tokens to embed per sample (default longest in the data)")
+    model_arguments = argparse.ArgumentParser(add_help=False)
+    model_arguments.add_argument("--units", type=int, default=128, help="LSTM hidden layer size (default 128)")
+    model_arguments.add_argument("--dropout", type=float, help="Dropout rate (default no dropout)")
+    model_arguments.add_argument("--maximum-tokens", type=int,
+                                 help="maximum number of tokens to embed per sample (default longest in the data)")
 
     training_arguments = argparse.ArgumentParser(add_help=False)
     training_arguments.add_argument("training", help="training data")
@@ -68,8 +68,8 @@ def create_argument_parser():
     
     You may optionally specify either a separate labeled data file for validation or a portion of the training data
     to use as validation."""),
-                                         parents=[data_arguments, model_parameters, training_arguments,
-                                                  embedding_options],
+                                         parents=[data_arguments, model_arguments, training_arguments,
+                                                  embedding_arguments],
                                          help="train model")
     train_parser.add_argument("--model-directory-name", metavar="MODEL", help="output model directory")
     train_parser.add_argument("--bidirectional", action="store_true", help="make LSTM bidirectional")
@@ -80,7 +80,7 @@ def create_argument_parser():
     Continue training a model.
     
     The updated model information is written to the original model directory."""),
-                                            parents=[data_arguments, training_arguments, embedding_options],
+                                            parents=[data_arguments, training_arguments, embedding_arguments],
                                             help="continue training a model")
     continue_parser.add_argument("model_directory_name", metavar="MODEL",
                                  help="directory containing previously trained model")
@@ -94,7 +94,7 @@ def create_argument_parser():
     # Predict subcommand
     predict_parser = subparsers.add_parser("predict", description=textwrap.dedent("""\
     Use a model to predict the probability of the text pair label."""),
-                                           parents=[data_arguments, embedding_options, test_arguments],
+                                           parents=[data_arguments, embedding_arguments, test_arguments],
                                            help="predict labels")
     predict_parser.set_defaults(func=lambda args: predict(args))
 
@@ -103,7 +103,7 @@ def create_argument_parser():
     Use a model to score a labeled test set.
     
     This returns the model's cross entropy loss and accuracy on the test set."""),
-                                           parents=[data_arguments, embedding_options, test_arguments],
+                                           parents=[data_arguments, embedding_arguments, test_arguments],
                                            help="score labeled test set")
     predict_parser.set_defaults(func=lambda args: score(args))
 
