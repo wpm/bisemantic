@@ -1,13 +1,13 @@
 # Bisemantic
 
-Bisemantic uses deep learning to identify semantic relationships between pairs of text.
+Bisemantic identifies semantic relationships between pairs of text.
 It uses a shared LSTM which maps two texts to representations in a common format which are then aligned with training
 labels.
 
 
 ## Installation
 
-This tools uses the [spaCy](https://spacy.io/) text natural language processing tools.
+Bisemantic depends on the [spaCy](https://spacy.io/) text natural language processing toolkit.
 It may be necessary to install spaCy's English language text model with a command like `python -m spacy download en` 
 before running.
 See spaCy's [models documentation](https://spacy.io/docs/usage/models) for more information.
@@ -15,7 +15,7 @@ See spaCy's [models documentation](https://spacy.io/docs/usage/models) for more 
 
 ## Running
 
-Run this tool with the command `bisemantic`.
+Run Bisemantic with the command `bisemantic`.
 Subcommands enable you to train and use models and partition data into cross-validation sets.
 Run `bisemantic --help` for details about specific commands.
 
@@ -33,7 +33,7 @@ Trained models are written to a directory that contains the following files:
 Weights from the epoch with the best loss score are saved in model.h5.
 
 The model directory can be used to predict probability distributions over labels and score test sets.
-Further training can be done using a model directory as a starting point.
+Further training can be done using an existing model directory as a starting point.
 
 
 ## Classifier Model
@@ -44,9 +44,9 @@ The meaning of the class varies from data set to data set but usually represents
 between the two texts.
 
 [GloVe](https://nlp.stanford.edu/projects/glove/) vectors are used to embed the texts into matrices of size
-_(maximum tokens, 300)_, clipping or padding the first dimension as needed.
+_maximum tokens × 300_, clipping or padding the first dimension for each individual text as needed.
 If maximum tokens is not specified, the number of tokens in the longest text in the pairs is used.
-An optionally bidirectional shared LSTM converts these embeddings to single vectors,
+An (optionally bidirectional) shared LSTM converts these embeddings to single vectors,
  _r<sub>1</sub>_ and _r<sub>2</sub>_, which are then concatenated
 into the vector
 _[r<sub>1</sub>, r<sub>2</sub>, r<sub>1</sub> · r<sub>2</sub>, (r<sub>1</sub> - r<sub>2</sub>)<sup>2</sup>]_.
@@ -62,7 +62,8 @@ Bisemantic can be used for tasks like question de-duplication or textual entailm
 The [Quora question pair corpus](https://data.quora.com/First-Quora-Dataset-Release-Question-Pairs) contains
 pairs of questions annotated as either asking the same thing or not.
 
-Bisemantic creates a model similar to that described in \[[Homma et al.](https://web.stanford.edu/class/cs224n/reports/2748045.pdf)\]
+Bisemantic creates a model similar to that described in
+\[[Homma et al.](https://web.stanford.edu/class/cs224n/reports/2748045.pdf)\]
 and \[[Addair](https://web.stanford.edu/class/cs224n/reports/2759336.pdf)\].  
 The following command can be used to train a model on the `train.csv` file in this data set.
 
@@ -95,7 +96,8 @@ this data set.
 			--dropout 0.5 --units 256 --bidirectional \
 			--model-directory-name snli.model
 
-This achieved an accuracy of 80.16% on the development set and 79.49% on the test set after 9 epochs of training.
+This achieved an accuracy of 80.16% on the development set and 79.49% on the `snli_1.0_test.txt` test set after 9 epochs
+of training.
 
 
 ## References
