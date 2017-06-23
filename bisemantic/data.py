@@ -10,7 +10,12 @@ import spacy
 from pandas import DataFrame
 from toolz import partition_all
 
-from bisemantic import logger, text_1, text_2, label
+from bisemantic import logger
+
+# Column labels in DataFrame input.
+text_1 = "text1"
+text_2 = "text2"
+label = "label"
 
 
 class TextPairEmbeddingGenerator(object):

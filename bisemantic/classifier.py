@@ -16,8 +16,8 @@ from keras.engine import Model, Input
 from keras.layers import LSTM, multiply, concatenate, Dense, Dropout, Lambda, add, Bidirectional
 from keras.models import load_model
 
-from bisemantic import logger, label
-from bisemantic.data import TextPairEmbeddingGenerator, embedding_size
+from bisemantic import logger
+from bisemantic.data import TextPairEmbeddingGenerator, embedding_size, label
 
 
 class TextPairClassifier(object):
