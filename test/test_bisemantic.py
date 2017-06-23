@@ -255,7 +255,7 @@ class TestCommandLine(TestCase):
     def test_no_arguments(self):
         actual = main_function_output([])
         self.assertEqual(
-            "usage: bisemantic [-h] [--version] [--log LOG]\n                  " +
+            "usage: bisemantic [-h] [--version] [--log LEVEL]\n                  " +
             "{train,continue,predict,score,cross-validation} ...\n", actual)
 
     def test_version(self):
