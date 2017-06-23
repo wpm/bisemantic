@@ -224,9 +224,10 @@ class TextPairClassifier(object):
 
     def _model_topology(self):
         # Keras' model summary prints to standard out.
+        old_stdout = sys.stdout
         sys.stdout = s = StringIO()
         self.model.summary()
-        sys.stdout = sys.__stdout__
+        sys.stdout = old_stdout
         return s.getvalue()
 
     def fit(self, training, epochs=1, validation_data=None, model_directory=None):
