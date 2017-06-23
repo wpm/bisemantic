@@ -239,23 +239,6 @@ class TestModel(TestCase):
         shutil.rmtree(self.temporary_directory)
 
 
-class TestSerialization(TestCase):
-    def setUp(self):
-        _, self.filename = tempfile.mkstemp('.h5')
-
-    def test_serialization(self):
-        model = TextPairClassifier.create(2, 40, 300, 128, 0.5)
-        model.save(self.filename)
-        deserialized_model = TextPairClassifier.load(self.filename)
-        self.assertIsInstance(deserialized_model, TextPairClassifier)
-        self.assertEqual(model.maximum_tokens, deserialized_model.maximum_tokens)
-        self.assertEqual(model.embedding_size, deserialized_model.embedding_size)
-        self.assertEqual(model.lstm_units, deserialized_model.lstm_units)
-
-    def tearDown(self):
-        os.remove(self.filename)
-
-
 class TestCommandLine(TestCase):
     def setUp(self):
         self.temporary_directory = tempfile.mkdtemp()

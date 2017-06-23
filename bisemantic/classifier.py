@@ -52,7 +52,7 @@ class TextPairClassifier(object):
         model = cls.create(len(training.classes), training.maximum_tokens, embedding_size(), lstm_units, dropout)
         if model_directory is not None:
             os.makedirs(model_directory)
-            with open(os.path.join(model_directory, "model.info.txt"), "w") as f:
+            with open(cls.info_filename(model_directory), "w") as f:
                 f.write("%s\n" % model)
         return cls._train(epochs, model, model_directory, training, validation_data)
 
@@ -236,8 +236,9 @@ class TextPairClassifier(object):
         metrics = self.model.evaluate_generator(generator=g(), steps=g.batches_per_epoch)
         return list(zip(self.model.metrics_names, metrics))
 
-    def save(self, filename):
-        self.model.save(filename)
+    @staticmethod
+    def info_filename(model_directory):
+        return os.path.join(model_directory, "model.info.txt")
 
     @staticmethod
     def model_filename(model_directory):
