@@ -306,7 +306,7 @@ class TrainingHistory(object):
     def add_run(self, training_time, training, history):
         self.runs.append({"training-time": training_time,
                           "training": str(training),
-                          "class-names": training.classes,
+                          "class-names": [str(c) for c in training.classes],
                           "history": history,
                           "run-date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
 
