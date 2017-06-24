@@ -258,6 +258,11 @@ def embedding_size():
     return _load_text_parser().vocab.vectors_length
 
 
+def text_parser_info():
+    _load_text_parser()
+    return _text_parser_description()
+
+
 # Singleton instance of text tokenizer and embedder.
 text_parser = None
 
@@ -266,5 +271,10 @@ def _load_text_parser():
     global text_parser
     if text_parser is None:
         text_parser = spacy.load("en", tagger=None, parser=None, entity=None)
-        logger.info("%s: %s" % (text_parser.meta["name"], text_parser.meta["description"]))
+        logger.info(_text_parser_description())
     return text_parser
+
+
+def _text_parser_description():
+    # This assumes the text parser has already been loaded.
+    return "%s: %s Embedding size %d" % (text_parser.meta["name"], text_parser.meta["description"], embedding_size())

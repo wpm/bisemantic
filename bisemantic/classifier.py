@@ -17,7 +17,7 @@ from keras.layers import LSTM, multiply, concatenate, Dense, Dropout, Lambda, ad
 from keras.models import load_model
 
 from bisemantic import logger
-from bisemantic.data import TextPairEmbeddingGenerator, embedding_size, label
+from bisemantic.data import TextPairEmbeddingGenerator, embedding_size, label, text_parser_info
 
 
 class TextPairClassifier(object):
@@ -58,7 +58,7 @@ class TextPairClassifier(object):
         if model_directory is not None:
             os.makedirs(model_directory)
             with open(cls._info_filename(model_directory), "w") as f:
-                f.write("%s\n" % model)
+                f.write("%s\n%s\n" % (text_parser_info(), model))
         return cls._train(epochs, model, model_directory, training, validation_data)
 
     @classmethod
