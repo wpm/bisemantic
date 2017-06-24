@@ -79,7 +79,7 @@ This achieved an accuracy of 83.71% on the validation split after 9 epochs of tr
 
 The [Stanford Natural Language Inference corpus](https://nlp.stanford.edu/projects/snli/) is a corpus for the
 recognizing textual entailment (RTE) task.
-It labels a "text" sentence as either entailing, contradicting, or being neutral with respect to a "hypothesis"
+It labels a "premise" sentence as either entailing, contradicting, or being neutral with respect to a "hypothesis"
 sentence.
 
 Bisemantic creates a model similar to that described in
